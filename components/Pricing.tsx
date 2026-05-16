@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import WaitlistModal from "./WaitlistModal";
 
 const tiers = [
   {
@@ -13,7 +14,6 @@ const tiers = [
     glow: "rgba(107,143,126,0.08)",
     features: [
       { label: "Design Canvas", value: "✓" },
-      { label: "Templates", value: "25" },
       { label: "Custom Templates", value: "—" },
       { label: "yourname.spattoo.com", value: "—" },
       { label: "Custom Branding", value: "—" },
@@ -35,7 +35,6 @@ const tiers = [
     glow: "rgba(196,133,42,0.07)",
     features: [
       { label: "Design Canvas", value: "✓" },
-      { label: "Templates", value: "100" },
       { label: "Custom Templates", value: "—" },
       { label: "yourname.spattoo.com", value: "✓" },
       { label: "Custom Branding", value: "—" },
@@ -58,7 +57,6 @@ const tiers = [
     recommended: true,
     features: [
       { label: "Design Canvas", value: "✓" },
-      { label: "Templates", value: "250" },
       { label: "Custom Templates", value: "✓" },
       { label: "yourname.spattoo.com", value: "✓" },
       { label: "Custom Branding", value: "✓" },
@@ -80,7 +78,6 @@ const tiers = [
     glow: "rgba(139,58,42,0.08)",
     features: [
       { label: "Design Canvas", value: "✓" },
-      { label: "Templates", value: "Unlimited" },
       { label: "Custom Templates", value: "✓" },
       { label: "yourname.spattoo.com", value: "✓" },
       { label: "Custom Branding", value: "✓" },
@@ -101,6 +98,7 @@ function formatPrice(amount: number) {
 
 export default function Pricing() {
   const [annual, setAnnual] = useState(false);
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
 
   return (
     <section id="pricing" className="pt-14 pb-6 px-4 md:px-8 bg-[#0a0a0a]">
@@ -186,9 +184,9 @@ export default function Pricing() {
               </div>
 
               {/* CTA */}
-              <a
-                href="https://spattoo.app"
-                className="block text-center py-2.5 rounded-xl text-sm font-semibold transition-all"
+              <button
+                onClick={() => setWaitlistOpen(true)}
+                className="block w-full text-center py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer"
                 style={
                   tier.ctaVariant === "filled"
                     ? { backgroundColor: tier.accent, color: "#fff" }
@@ -200,7 +198,7 @@ export default function Pricing() {
                 }
               >
                 {tier.cta}
-              </a>
+              </button>
 
               {/* Divider */}
               <div className="h-px bg-white/5" />
@@ -225,10 +223,11 @@ export default function Pricing() {
 
         {/* Data retention note */}
         <p className="text-center text-[#edeae3]/45 text-xs mt-10">
-          Cancel anytime. Your designs and templates are retained for 30 days after cancellation.
+          Cancel anytime. Your designs are retained for 30 days after cancellation.
         </p>
 
       </div>
+      {waitlistOpen && <WaitlistModal onClose={() => setWaitlistOpen(false)} />}
     </section>
   );
 }

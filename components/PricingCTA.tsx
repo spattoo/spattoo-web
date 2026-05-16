@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import DemoModal from "./DemoModal";
+import WaitlistModal from "./WaitlistModal";
 
 export default function PricingCTA() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -17,13 +17,13 @@ export default function PricingCTA() {
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a
-            href="https://spattoo.app"
-            className="px-8 py-3.5 rounded-full font-semibold text-sm text-white transition-opacity hover:opacity-90"
+          <button
+            onClick={() => setModalOpen(true)}
+            className="px-8 py-3.5 rounded-full font-semibold text-sm text-white transition-opacity hover:opacity-90 cursor-pointer"
             style={{ backgroundColor: "#3d5247" }}
           >
             Get Started Free
-          </a>
+          </button>
           <button
             onClick={() => setModalOpen(true)}
             className="px-8 py-3.5 rounded-full font-semibold text-sm transition-opacity hover:opacity-90 cursor-pointer text-white"
@@ -42,7 +42,7 @@ export default function PricingCTA() {
         </button>
       </section>
 
-      {modalOpen && <DemoModal onClose={() => setModalOpen(false)} />}
+      {modalOpen && <WaitlistModal onClose={() => setModalOpen(false)} />}
     </>
   );
 }
