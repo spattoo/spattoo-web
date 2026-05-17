@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef, useMemo, useState, useEffect } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { useGLTF, OrbitControls, Text3D, Center, Environment } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useGLTF, OrbitControls, Text3D, Center } from "@react-three/drei";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
-// Local Draco decoder — avoids CDN CORS/WASM issues in Safari
+// Flower cascade now uses meshopt (bundled decoder) — draco path only needed for topper
 useGLTF.setDecoderPath("/draco/");
 import { Suspense } from "react";
 import * as THREE from "three";
@@ -14,7 +15,20 @@ const HEIGHT = 2.2;
 
 // Shared animation state across components
 const cakeColor = { value: new THREE.Color("#3d5c4a") };
-const timeline = { cascadeExitStarted: -1 };
+
+// ── Room environment (no CDN — uses Three.js built-in) ────────────────────────
+
+function SceneEnvironment() {
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    const pmrem = new THREE.PMREMGenerator(gl);
+    pmrem.compileEquirectangularShader();
+    const env = pmrem.fromScene(new RoomEnvironment()).texture;
+    scene.environment = env;
+    return () => { env.dispose(); pmrem.dispose(); };
+  }, [gl, scene]);
+  return null;
+}
 
 // ── Grid ──────────────────────────────────────────────────────────────────────
 
@@ -200,72 +214,6 @@ function Topper() {
   return <primitive ref={ref} object={scene} scale={0.7} visible={false} />;
 }
 
-// ── Flower Cascade prop ───────────────────────────────────────────────────────
-
-function FlowerCascade() {
-  const { scene } = useGLTF("/flower-cascade-2-70degrees.glb");
-  const ref = useRef<THREE.Group>(null);
-  const phase = useRef<"hidden" | "entering" | "sitting" | "exiting">("hidden");
-  const phaseStart = useRef(0);
-
-  const ENTER_FROM = useMemo(() => new THREE.Vector3(4, -0.6, 3), []);
-  const SIT_POS    = useMemo(() => new THREE.Vector3(0.5, 0.55, 1.3), []);
-  const EXIT_TO    = useMemo(() => new THREE.Vector3(-5, 1, 4), []);
-
-  const T_ENTER = 5;
-  const T_SIT   = 7;
-  const T_EXIT_DURATION = 4;
-
-  useFrame((state) => {
-    if (!ref.current) return;
-    const t = state.clock.elapsedTime;
-
-    if (phase.current === "hidden") {
-      ref.current.visible = false;
-      ref.current.position.copy(ENTER_FROM);
-      if (t >= T_ENTER) {
-        phase.current = "entering";
-        phaseStart.current = t;
-        ref.current.visible = true;
-        ref.current.rotation.set(0.3, Math.PI, 0.2);
-      }
-      return;
-    }
-
-    const elapsed = t - phaseStart.current;
-
-    if (phase.current === "entering") {
-      ref.current.position.lerp(SIT_POS, 0.08);
-      ref.current.rotation.x = THREE.MathUtils.lerp(ref.current.rotation.x, 0, 0.06);
-      ref.current.rotation.y = THREE.MathUtils.lerp(ref.current.rotation.y, 0, 0.06);
-      ref.current.rotation.z = THREE.MathUtils.lerp(ref.current.rotation.z, 0, 0.06);
-      if (ref.current.position.distanceTo(SIT_POS) < 0.05) {
-        phase.current = "sitting";
-        phaseStart.current = t;
-      }
-    } else if (phase.current === "sitting") {
-      ref.current.position.copy(SIT_POS);
-      ref.current.rotation.set(0, 0, 0);
-      if (elapsed > T_SIT) {
-        phase.current = "exiting";
-        phaseStart.current = t;
-        timeline.cascadeExitStarted = t;
-      }
-    } else if (phase.current === "exiting") {
-      ref.current.rotation.y -= 0.04;
-      ref.current.rotation.x += 0.02;
-      ref.current.position.lerp(EXIT_TO, 0.025);
-      if (elapsed > T_EXIT_DURATION) {
-        phase.current = "hidden";
-        ref.current.visible = false;
-        ref.current.position.copy(ENTER_FROM);
-        ref.current.rotation.set(0, 0, 0);
-      }
-    }
-  });
-
-  return <primitive ref={ref} object={scene} scale={1.1} visible={false} />;
-}
 
 // ── Cake name tag ─────────────────────────────────────────────────────────────
 
@@ -274,12 +222,29 @@ function CakeNameTag() {
   const phase = useRef<"hidden" | "entering" | "sitting" | "exiting">("hidden");
   const phaseStart = useRef(0);
 
-  const SIT_POS    = useMemo(() => new THREE.Vector3(-0.2, 0.95, RADIUS - 0.01), []);
-  const ENTER_FROM = useMemo(() => new THREE.Vector3(2.5, 0.95, RADIUS - 0.01), []);
+  // Group origin sits at cylinder axis — chars radiate outward at RADIUS
+  const SIT_POS    = useMemo(() => new THREE.Vector3(0, 0.95, 0), []);
+  const ENTER_FROM = useMemo(() => new THREE.Vector3(3, 0.95, 0), []);
   const EXIT_TO    = useMemo(() => new THREE.Vector3(-3, 1.5, 3), []);
 
-  const T_ENTER = 7;
+  const T_ENTER = 5;
+  const T_SIT   = 8;
   const T_EXIT_DURATION = 4;
+
+  // Arc each character around the cylinder surface
+  const charData = useMemo(() => {
+    const letters = ['J', 'e', 's', 's', 'y'];
+    const widths  = [0.15, 0.165, 0.15, 0.15, 0.16]; // approx Helvetiker Bold at size=0.26
+    const spacing = 0.03;
+    const totalWidth = widths.reduce((a, b) => a + b, 0) + spacing * (letters.length - 1);
+    let offset = -totalWidth / 2;
+    return letters.map((char, i) => {
+      const center = offset + widths[i] / 2;
+      const angle  = center / RADIUS;
+      offset += widths[i] + spacing;
+      return { char, angle };
+    });
+  }, []);
 
   useFrame((state) => {
     if (!groupRef.current) return;
@@ -306,8 +271,7 @@ function CakeNameTag() {
       }
     } else if (phase.current === "sitting") {
       groupRef.current.position.copy(SIT_POS);
-      // Exit 2 seconds after cascade starts leaving
-      if (timeline.cascadeExitStarted > 0 && t >= timeline.cascadeExitStarted + 2) {
+      if (elapsed > T_SIT) {
         phase.current = "exiting";
         phaseStart.current = t;
       }
@@ -323,21 +287,29 @@ function CakeNameTag() {
 
   return (
     <group ref={groupRef} visible={false}>
-      <Center>
-        <Text3D
-          font="/fonts/brush_script.typeface.json"
-          size={0.44}
-          height={0.05}
-          bevelEnabled
-          bevelThickness={0.014}
-          bevelSize={0.007}
-          bevelSegments={8}
-          curveSegments={48}
+      {charData.map(({ char, angle }, i) => (
+        <group
+          key={i}
+          position={[RADIUS * Math.sin(angle), 0, RADIUS * Math.cos(angle)]}
+          rotation={[0, angle, 0]}
         >
-          Jessy
-          <meshPhysicalMaterial color="#ffcc00" metalness={1} roughness={0.05} clearcoat={1} clearcoatRoughness={0} />
-        </Text3D>
-      </Center>
+          <Center disableZ>
+            <Text3D
+              font="/fonts/helvetiker_bold.typeface.json"
+              size={0.26}
+              height={0.05}
+              bevelEnabled
+              bevelThickness={0.012}
+              bevelSize={0.007}
+              bevelSegments={6}
+              curveSegments={12}
+            >
+              {char}
+              <meshStandardMaterial color="#c8a84b" emissive="#a07828" emissiveIntensity={0.2} metalness={0.95} roughness={0.4} />
+            </Text3D>
+          </Center>
+        </group>
+      ))}
     </group>
   );
 }
@@ -372,7 +344,6 @@ function CakeContainer({ children }: { children: React.ReactNode }) {
 }
 
 useGLTF.preload("/3D_happy_birthday_acrylic_topper_1.glb");
-useGLTF.preload("/flower-cascade-2-70degrees.glb");
 
 // ── HTML colour selector ──────────────────────────────────────────────────────
 
@@ -481,10 +452,7 @@ export default function SpaceGrid() {
           <VanishingRings />
         </group>
 
-        {/* Environment in its own Suspense — if CDN fails it won't block the cake */}
-        <Suspense fallback={null}>
-          <Environment preset="apartment" />
-        </Suspense>
+        <SceneEnvironment />
 
         <Suspense fallback={null}>
           <TimelineWatcher onReady={() => setShowPicker(true)} />
@@ -501,7 +469,6 @@ export default function SpaceGrid() {
               <CakeBoard />
               <CakeBody />
               <Topper />
-              <FlowerCascade />
               <CakeNameTag />
             </group>
           </CakeContainer>
@@ -521,3 +488,5 @@ export default function SpaceGrid() {
     </div>
   );
 }
+
+useGLTF.preload("/3D_happy_birthday_acrylic_topper_1.glb");
