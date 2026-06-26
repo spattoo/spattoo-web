@@ -1,11 +1,12 @@
-// Placeholder root of the customer/baker app surface (app.spattoo.com).
-// Task 5 adds host-based routing: {slug}.spattoo.com → customer storefront,
-// app.spattoo.com → baker app. For now this is a buildable stub.
+import BakerApp from "./BakerApp";
+
+// Client-only baker app (Supabase auth + heavy OrdersPanel) — don't prerender at
+// build (it needs runtime env); render on demand.
+export const dynamic = "force-dynamic";
+
+// Root of the app surface (app.spattoo.com, and localhost root in dev). The baker
+// app: sign in → order management + Send quote. Customer storefronts live at
+// {slug}.spattoo.com → /[slug] (host middleware).
 export default function AppHome() {
-  return (
-    <main style={{ fontFamily: "sans-serif", padding: 48 }}>
-      <h1>Spattoo</h1>
-      <p>App surface — storefront &amp; baker tools land here.</p>
-    </main>
-  );
+  return <BakerApp />;
 }

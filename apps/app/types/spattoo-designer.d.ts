@@ -7,4 +7,6 @@ declare module "@spattoo/designer" {
   export const CakeDesigner: ComponentType<any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export const CustomerStorefront: ComponentType<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  export const OrdersPanel: ComponentType<any>;
 }
