@@ -243,7 +243,7 @@ const S: Record<string, React.CSSProperties> = {
   page: { fontFamily: "sans-serif", maxWidth: 560, margin: "0 auto", padding: "24px 18px 48px", color: "#2A2024" },
   eyebrow: { fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "#2C4433", margin: 0 },
   h1: { fontSize: 24, fontWeight: 800, margin: "4px 0 18px" },
-  thumb: { width: "100%", aspectRatio: "4 / 3", borderRadius: 16, background: "#F4F1EC", border: "1px solid #ECE5DE", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  thumb: { width: "100%", height: 200, borderRadius: 16, background: "#F4F1EC", border: "1px solid #ECE5DE", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" },
   thumbImg: { width: "100%", height: "100%", objectFit: "contain" },
   statusRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 16 },
   badge: { fontSize: 12, fontWeight: 700, color: "#2C4433", background: "#EAF0EC", borderRadius: 20, padding: "4px 12px" },
