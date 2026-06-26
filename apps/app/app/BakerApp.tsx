@@ -8,15 +8,16 @@ import { makeBakerApiClient } from "../lib/bakerApi";
 import { setTelemetryContext } from "../lib/telemetry";
 import { bridgeCoreTelemetryToSentry } from "../lib/coreTelemetryBridge";
 
-// OrdersPanel is a heavy client component (renders the 3D X-ray etc.) — client-only.
-const OrdersPanel = dynamic(
-  () => import("@spattoo/designer").then((m) => m.OrdersPanel),
+// The full baker tool (designer + dashboard + OrdersPanel/Send quote + edit-in-3D).
+// Heavy WebGL — client-only. Same component as core's :5173 dev harness.
+const CakeDesigner = dynamic(
+  () => import("@spattoo/designer").then((m) => m.CakeDesigner),
   { ssr: false, loading: () => <Centered>Loading…</Centered> }
 );
 
-// The baker app surface (app.spattoo.com / localhost root): Supabase login → the
-// order management screen, where the baker reviews requests and Sends quotes from
-// the order details (reuses core OrdersPanel + its QuotePanel).
+// The baker app surface (app.spattoo.com / localhost root): Supabase login →
+// the full CakeDesigner in baker mode. It self-loads baker data via the apiClient
+// and contains the order management + Send quote + edit-in-3D.
 export default function BakerApp() {
   const supabase = getSupabase();
   const api = useMemo(() => makeBakerApiClient(supabase), [supabase]);
@@ -34,33 +35,33 @@ export default function BakerApp() {
     return () => sub.subscription.unsubscribe();
   }, [supabase]);
 
+  // Key on the STABLE user id, not the session object — Supabase hands a new session
+  // reference on every auth event (token refresh / focus / initial), and depending on
+  // the object made this re-run → re-fetch → setBaker churn → CakeDesigner re-mounted
+  // in a loop (new WebGLRenderer each time → context exhaustion → cake flickers + dies).
+  const userId = session?.user?.id;
   useEffect(() => {
-    setTelemetryContext({ surface: "baker-app", role: "baker", userId: session?.user?.id });
-    if (!session) { setBaker(null); return; }
+    setTelemetryContext({ surface: "baker-app", role: "baker", userId });
+    if (!userId) { setBaker(null); return; }
     bridgeCoreTelemetryToSentry("baker-app"); // route OrdersPanel's internal reportError to Sentry
+    let alive = true;
     api
       .fetchBakerProfile()
-      .then((p: { baker?: Record<string, unknown> }) => setBaker((p?.baker ?? p) as typeof baker))
-      .catch(() => setBaker(null));
-  }, [session, api]);
+      .then((p: { baker?: Record<string, unknown> }) => { if (alive) setBaker((p?.baker ?? p) as typeof baker); })
+      // Keep the current baker on a transient error — never tear down the mounted designer.
+      .catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   if (!ready) return <Centered>Loading…</Centered>;
   if (!session) return <BakerLogin supabase={supabase} />;
   if (!baker) return <Centered>Loading your shop…</Centered>;
 
-  return (
-    <OrdersPanel
-      open
-      apiClient={api}
-      bakerSlug={baker.slug ?? null}
-      primaryColor={baker.primary_color ?? "#2C4433"}
-      onClose={() => supabase.auth.signOut()}
-      onEditDesign={() => {
-        // In-app 3D editing from the baker side isn't wired in this surface yet.
-        alert("Editing the 3D design from here is coming soon.");
-      }}
-    />
-  );
+  // Full baker tool — lands on the designer; Orders (with Send quote) + edit-in-3D
+  // live inside it, exactly like the :5173 dev harness. CakeDesigner self-loads
+  // baker profile/settings/catalog via the apiClient (orderMode defaults to 'baker').
+  return <CakeDesigner apiClient={api} supabase={supabase} />;
 }
 
 function BakerLogin({ supabase }: { supabase: ReturnType<typeof getSupabase> }) {

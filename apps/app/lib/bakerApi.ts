@@ -3,9 +3,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { API_BASE } from "./api";
 
-// The baker-side apiClient for OrdersPanel (order management + Send quote). Auth is
-// the baker's Supabase session (signInWithPassword); every call carries the Bearer
-// token and the API resolves the baker from baker_appusers.
+// The baker-side apiClient for the FULL CakeDesigner (baker mode) — which contains
+// the designer, dashboard, OrdersPanel + Send quote, and edit-in-3D. Auth is the
+// baker's Supabase session; every call carries the Bearer token and the API
+// resolves the baker from baker_appusers. The 'owner'/'staff' roles hold
+// design:create + order caps, so the global catalog endpoints work.
 export function makeBakerApiClient(supabase: SupabaseClient) {
   async function authFetch(path: string, opts: RequestInit = {}) {
     const {
@@ -30,33 +32,76 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
       return r.json();
     });
 
-  return {
-    // Baker context (for slug + brand colour)
-    fetchBakerProfile: () => authGet("/api/baker/profile"),
+  // The baker's own slug (cached) — needed for the public order-create + flavours.
+  let slugCache: string | null = null;
+  async function bakerSlug(): Promise<string | null> {
+    if (slugCache) return slugCache;
+    const p = await authGet("/api/baker/profile").catch(() => null);
+    slugCache = (p?.baker ?? p)?.slug ?? null;
+    return slugCache;
+  }
 
-    // Orders
+  return {
+    // ── Baker context ─────────────────────────────────────────────────────────
+    fetchBakerProfile: () => authGet("/api/baker/profile"),
+    fetchBakerSettings: () => authGet("/api/baker/settings"),
+    fetchMe: () => authGet("/api/me").catch(() => null),
+
+    // ── Catalog (baker Bearer; design:create) ─────────────────────────────────
+    fetchElementTypes: () => authGet("/api/element-types"),
+    fetchElements: (opts: { parentsOnly?: boolean; elementTypeId?: string } = {}) => {
+      const qs = new URLSearchParams();
+      if (opts.parentsOnly) qs.set("parents_only", "true");
+      if (opts.elementTypeId) qs.set("element_type_id", opts.elementTypeId);
+      const q = qs.toString();
+      return authGet(`/api/elements${q ? `?${q}` : ""}`);
+    },
+    fetchMaterials: () => authGet("/api/materials"),
+    fetchTextures: () => authGet("/api/textures"),
+    fetchTags: () => authGet("/api/tags"),
+    fetchTemplates: () => authGet("/api/templates").catch(() => []),
+    fetchTemplate: (id: string) => authGet(`/api/templates/${id}`),
+
+    // ── Uploads + order create/design (baker placing an order; edit-in-3D save) ─
+    getSignedUploadUrl: (folder: string, filename: string, contentType: string) =>
+      authFetch("/api/storage/sign-upload", {
+        method: "POST",
+        body: JSON.stringify({ folder, filename, contentType }),
+      }),
+    placeOrder: async (payload: Record<string, unknown>) =>
+      authFetch("/api/orders", {
+        method: "POST",
+        body: JSON.stringify({ ...payload, bakerSlug: await bakerSlug() }),
+      }),
+    updateOrderDesign: (id: string, payload: unknown) =>
+      authFetch(`/api/orders/${id}/design`, { method: "PATCH", body: JSON.stringify(payload) }),
+
+    // ── Orders + quoting ──────────────────────────────────────────────────────
     fetchOrders: (params: Record<string, string> = {}) => {
       const qs = new URLSearchParams(params).toString();
       return authGet(`/api/orders${qs ? `?${qs}` : ""}`);
     },
     updateOrderStatus: (id: string, status: string, comment?: string) =>
-      authFetch(`/api/orders/${id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status, comment }),
-      }),
+      authFetch(`/api/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, comment }) }),
     editOrder: (id: string, formData: unknown) =>
       authFetch(`/api/orders/${id}`, { method: "PATCH", body: JSON.stringify(formData) }),
     issueQuote: (id: string, body: { price: number; lineItems?: unknown; validUntil?: string }) =>
       authFetch(`/api/orders/${id}/quote`, { method: "POST", body: JSON.stringify(body) }),
     fetchOrderAudit: (id: string) => authGet(`/api/orders/${id}/audit`),
 
-    // Reference data
+    // ── Reference data ────────────────────────────────────────────────────────
     fetchOrderStatuses: () => publicGet("/api/order-statuses"),
-    fetchFlavours: (bakerSlug: string) =>
-      publicGet(`/api/flavours?bakerSlug=${encodeURIComponent(bakerSlug)}`),
+    fetchFlavours: (bakerSlugArg?: string) =>
+      bakerSlugArg
+        ? publicGet(`/api/flavours?bakerSlug=${encodeURIComponent(bakerSlugArg)}`)
+        : bakerSlug().then((s) => (s ? publicGet(`/api/flavours?bakerSlug=${encodeURIComponent(s)}`) : [])),
     fetchCustomers: () => authGet("/api/baker/customers"),
     fetchCraftGuides: (elementIds: string[]) =>
       authGet(`/api/craft-guide?element_ids=${(elementIds ?? []).join(",")}`).catch(() => []),
+
+    // ── Account ───────────────────────────────────────────────────────────────
+    signOut: () => supabase.auth.signOut(),
+    changePassword: (password: string) => supabase.auth.updateUser({ password }),
   };
 }
 

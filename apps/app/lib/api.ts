@@ -63,8 +63,10 @@ export function makeCustomerApiClient(supabase: SupabaseClient, slug: string) {
     fetchTemplates: () => authGet(`/api/templates`).catch(() => []),
     fetchTemplate: (id: string) => authGet(`/api/templates/${id}`),
 
-    // Customer has no baker "me" profile — the designer tolerates null.
-    fetchMe: () => Promise.resolve(null),
+    // The principal's real role + capabilities (resolveCustomer → 'customer' with
+    // design:create/order:place). Drives the designer's hasCap gating so the baker
+    // chrome (Dashboard/Orders/Customers/Invite/Save-as-Template) stays hidden.
+    fetchMe: () => authGet("/api/me").catch(() => null),
 
     // ── Public reads ──────────────────────────────────────────────────────────
     fetchFlavours: (bakerSlug: string) =>
