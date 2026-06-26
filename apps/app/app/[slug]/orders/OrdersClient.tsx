@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSupabase } from "../../../lib/supabase";
 import { makeCustomerApiClient } from "../../../lib/api";
+import { setTelemetryContext } from "../../../lib/telemetry";
 
 // Customer-facing status labels (a friendly subset; the baker UI has its own).
 const STATUS_LABEL: Record<string, string> = {
@@ -38,6 +39,8 @@ export default function OrdersClient({ slug }: { slug: string }) {
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  useEffect(() => setTelemetryContext({ surface: "customer-quotes", bakerSlug: slug, role: "customer" }), [slug]);
 
   useEffect(() => {
     let alive = true;

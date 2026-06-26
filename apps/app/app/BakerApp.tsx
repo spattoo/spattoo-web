@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase } from "../lib/supabase";
 import { makeBakerApiClient } from "../lib/bakerApi";
+import { setTelemetryContext } from "../lib/telemetry";
+import { bridgeCoreTelemetryToSentry } from "../lib/coreTelemetryBridge";
 
 // OrdersPanel is a heavy client component (renders the 3D X-ray etc.) — client-only.
 const OrdersPanel = dynamic(
@@ -33,7 +35,9 @@ export default function BakerApp() {
   }, [supabase]);
 
   useEffect(() => {
+    setTelemetryContext({ surface: "baker-app", role: "baker", userId: session?.user?.id });
     if (!session) { setBaker(null); return; }
+    bridgeCoreTelemetryToSentry("baker-app"); // route OrdersPanel's internal reportError to Sentry
     api
       .fetchBakerProfile()
       .then((p: { baker?: Record<string, unknown> }) => setBaker((p?.baker ?? p) as typeof baker))

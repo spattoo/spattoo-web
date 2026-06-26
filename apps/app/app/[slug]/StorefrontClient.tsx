@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CustomerStorefront } from "@spattoo/designer";
 import { getSupabase } from "../../lib/supabase";
 import { API_BASE } from "../../lib/api";
+import { setTelemetryContext } from "../../lib/telemetry";
 
 // Mounts the core CustomerStorefront and routes its callbacks. The whole journey
 // stays on this origin (the baker's subdomain) so the Supabase session set during
@@ -12,6 +14,8 @@ export default function StorefrontClient({ slug }: { slug: string }) {
   const router = useRouter();
   const inviteId = useSearchParams().get("invite");
   const supabase = getSupabase();
+
+  useEffect(() => setTelemetryContext({ surface: "storefront", bakerSlug: slug }), [slug]);
 
   return (
     <CustomerStorefront

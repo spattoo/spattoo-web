@@ -9,4 +9,8 @@ declare module "@spattoo/designer" {
   export const CustomerStorefront: ComponentType<any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export const OrdersPanel: ComponentType<any>;
+  export function configureTelemetry(opts: {
+    transport?: { capture: (e: Error, c: Record<string, unknown>) => void; setContext?: (c: Record<string, unknown>) => void };
+    surface?: string;
+  }): void;
 }
