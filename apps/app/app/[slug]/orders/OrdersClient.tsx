@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { getSupabase } from "../../../lib/supabase";
 import { makeCustomerApiClient } from "../../../lib/api";
 import { setTelemetryContext } from "../../../lib/telemetry";
@@ -38,7 +39,6 @@ export default function OrdersClient({ slug }: { slug: string }) {
 
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => setTelemetryContext({ surface: "customer-quotes", bakerSlug: slug, role: "customer" }), [slug]);
 
@@ -53,19 +53,6 @@ export default function OrdersClient({ slug }: { slug: string }) {
     };
   }, [api]);
 
-  async function act(id: string, fn: (id: string) => Promise<Order>) {
-    setBusyId(id);
-    setError(null);
-    try {
-      const updated = await fn(id);
-      setOrders((os) => (os ?? []).map((o) => (o.id === id ? { ...o, ...updated } : o)));
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   if (error && !orders) return <Centered>{error}</Centered>;
   if (!orders) return <Centered>Loading…</Centered>;
   if (!orders.length)
@@ -77,10 +64,10 @@ export default function OrdersClient({ slug }: { slug: string }) {
       {error && <p style={S.err}>{error}</p>}
       <div style={S.list}>
         {orders.map((o) => {
-          const canDecide = o.status === "quoted" && !o.quote_stale;
           const price = o.final_price ?? o.quoted_price;
+          const reviewable = o.status === "quoted" && !o.quote_stale;
           return (
-            <div key={o.id} style={S.card}>
+            <Link key={o.id} href={`/${slug}/orders/${o.id}`} style={{ ...S.card, textDecoration: "none", color: "inherit" }}>
               <div style={S.thumb}>
                 {o.design_thumbnail_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -94,33 +81,12 @@ export default function OrdersClient({ slug }: { slug: string }) {
                   <span style={S.badge}>{STATUS_LABEL[o.status] ?? o.status}</span>
                   {price != null && <span style={S.price}>₹{price}</span>}
                 </div>
-                {o.status === "quoted" && o.quote_stale && (
-                  <p style={S.note}>
-                    You changed the design after this quote — {o.baker_name ?? "the baker"} will
-                    re-confirm the price.
-                  </p>
-                )}
                 {o.delivery_date && <p style={S.meta}>Delivery: {o.delivery_date}</p>}
-                {canDecide && (
-                  <div style={S.actions}>
-                    <button
-                      disabled={busyId === o.id}
-                      onClick={() => act(o.id, api.acceptQuote)}
-                      style={S.accept}
-                    >
-                      {busyId === o.id ? "…" : "Accept quote"}
-                    </button>
-                    <button
-                      disabled={busyId === o.id}
-                      onClick={() => act(o.id, api.declineQuote)}
-                      style={S.decline}
-                    >
-                      Decline
-                    </button>
-                  </div>
-                )}
+                <p style={{ ...S.meta, color: reviewable ? "#2C4433" : "#aaa", fontWeight: 700 }}>
+                  {reviewable ? "Review & accept →" : "View details →"}
+                </p>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
