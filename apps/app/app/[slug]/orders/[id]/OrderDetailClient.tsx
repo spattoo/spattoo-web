@@ -172,10 +172,7 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
           <button disabled={busy} onClick={approve} style={S.approve}>
             {busy ? "One moment…" : "I'm happy with the price"}
           </button>
-          <p style={S.balance}>
-            Every cake is priced for its ingredients and the hours of handwork that go into it. If you&apos;d like to talk anything through, {bakerName} is happy to help.
-          </p>
-          <button onClick={() => setTalkOpen((v) => !v)} style={S.talkLink}>Have a question? Talk to {bakerName}</button>
+          <button onClick={() => setTalkOpen((v) => !v)} style={{ ...S.talkLink, marginTop: 12 }}>Have a question? Talk to {bakerName}</button>
         </>
       )}
 
