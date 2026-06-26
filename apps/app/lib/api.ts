@@ -84,6 +84,15 @@ export function makeCustomerApiClient(supabase: SupabaseClient, slug: string) {
         method: "POST",
         body: JSON.stringify(payload),
       }),
+
+    // ── The customer's own quotes/orders (the "your quotes" view) ─────────────
+    fetchMyOrders: () =>
+      authFetch(`/api/customer/orders?bakerSlug=${encodeURIComponent(slug)}`),
+    fetchMyOrder: (id: string) => authFetch(`/api/customer/orders/${id}`),
+    acceptQuote: (id: string) =>
+      authFetch(`/api/customer/orders/${id}/accept`, { method: "POST" }),
+    declineQuote: (id: string) =>
+      authFetch(`/api/customer/orders/${id}/decline`, { method: "POST" }),
   };
 }
 
