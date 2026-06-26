@@ -85,7 +85,7 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
       authFetch(`/api/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, comment }) }),
     editOrder: (id: string, formData: unknown) =>
       authFetch(`/api/orders/${id}`, { method: "PATCH", body: JSON.stringify(formData) }),
-    issueQuote: (id: string, body: { price: number; lineItems?: unknown; validUntil?: string }) =>
+    issueQuote: (id: string, body: { price: number; advanceAmount?: number | null; note?: string; lineItems?: unknown; validUntil?: string }) =>
       authFetch(`/api/orders/${id}/quote`, { method: "POST", body: JSON.stringify(body) }),
     fetchOrderAudit: (id: string) => authGet(`/api/orders/${id}/audit`),
 

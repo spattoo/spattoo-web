@@ -95,6 +95,12 @@ export function makeCustomerApiClient(supabase: SupabaseClient, slug: string) {
       authFetch(`/api/customer/orders/${id}/accept`, { method: "POST" }),
     declineQuote: (id: string) =>
       authFetch(`/api/customer/orders/${id}/decline`, { method: "POST" }),
+    // "Talk to {baker}" — record a question on the quote + notify the baker.
+    sendOrderMessage: (id: string, message: string) =>
+      authFetch(`/api/customer/orders/${id}/message`, {
+        method: "POST",
+        body: JSON.stringify({ message }),
+      }),
   };
 }
 
