@@ -95,9 +95,68 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
       bakerSlugArg
         ? publicGet(`/api/flavours?bakerSlug=${encodeURIComponent(bakerSlugArg)}`)
         : bakerSlug().then((s) => (s ? publicGet(`/api/flavours?bakerSlug=${encodeURIComponent(s)}`) : [])),
-    fetchCustomers: () => authGet("/api/baker/customers"),
     fetchCraftGuides: (elementIds: string[]) =>
       authGet(`/api/craft-guide?element_ids=${(elementIds ?? []).join(",")}`).catch(() => []),
+
+    // ── Customers ─────────────────────────────────────────────────────────────
+    fetchCustomers: () => authGet("/api/baker/customers"),
+    createCustomer: (payload: unknown) =>
+      authFetch("/api/baker/customers", { method: "POST", body: JSON.stringify(payload) }),
+    updateCustomer: (id: string, payload: unknown) =>
+      authFetch(`/api/baker/customers/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+    deactivateCustomer: (id: string) =>
+      authFetch(`/api/baker/customers/${id}/deactivate`, { method: "PATCH" }),
+    reactivateCustomer: (id: string) =>
+      authFetch(`/api/baker/customers/${id}/reactivate`, { method: "PATCH" }),
+    inviteCustomer: (payload: unknown) =>
+      authFetch("/api/baker/customers/invite", { method: "POST", body: JSON.stringify(payload) }),
+
+    // ── Dashboard ─────────────────────────────────────────────────────────────
+    fetchDashboard: () => authGet("/api/baker/dashboard"),
+    fetchDashboardBreakdown: (period: string) =>
+      authGet(`/api/baker/dashboard/breakdown?period=${encodeURIComponent(period)}`),
+
+    // ── Flavours (baker management: global list + this baker's exclusions) ──────
+    fetchBakerFlavours: () => authGet("/api/baker/flavours"),
+    updateBakerFlavourExclusions: (excludedFlavourIds: string[]) =>
+      authFetch("/api/baker/flavours/exclusions", {
+        method: "PUT",
+        body: JSON.stringify({ excluded_flavour_ids: excludedFlavourIds }),
+      }),
+
+    // ── Profile / Settings / Storefront publish ───────────────────────────────
+    updateBakerProfile: (payload: unknown) =>
+      authFetch("/api/baker/profile", { method: "PATCH", body: JSON.stringify(payload) }),
+    updateBakerSettings: (settings: unknown) =>
+      authFetch("/api/baker/settings", { method: "PUT", body: JSON.stringify(settings) }),
+    fetchStorefrontThemes: () => authGet("/api/baker/storefront-themes"),
+    publishStorefront: () => authFetch("/api/baker/storefront/publish", { method: "POST" }),
+    unpublishStorefront: () => authFetch("/api/baker/storefront/unpublish", { method: "POST" }),
+
+    // ── Storefront gallery + testimonials ─────────────────────────────────────
+    addStorefrontPhoto: (key: string, caption?: string) =>
+      authFetch("/api/baker/storefront-photos", {
+        method: "POST",
+        body: JSON.stringify({ storage_key: key, caption }),
+      }),
+    updateStorefrontPhotos: (photos: unknown) =>
+      authFetch("/api/baker/storefront-photos", { method: "PUT", body: JSON.stringify({ photos }) }),
+    deleteStorefrontPhoto: (id: string) =>
+      authFetch(`/api/baker/storefront-photos/${id}`, { method: "DELETE" }),
+    updateTestimonials: (testimonials: unknown) =>
+      authFetch("/api/baker/testimonials", { method: "PUT", body: JSON.stringify({ testimonials }) }),
+
+    // ── Billing / subscription ────────────────────────────────────────────────
+    fetchBillingStatus: () => authGet("/api/billing/status"),
+    fetchBillingPeriods: () => authGet("/api/billing/periods"),
+    fetchSubscriptionHistory: () => authGet("/api/baker/subscription/history"),
+    activateSparkPlan: () => authFetch("/api/billing/activate-spark", { method: "POST" }),
+    createSubscription: (tier: string, billingPeriodId: string) =>
+      authFetch("/api/billing/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ tier, billing_period_id: billingPeriodId }),
+      }),
+    cancelSubscription: () => authFetch("/api/billing/cancel", { method: "POST" }),
 
     // ── Account ───────────────────────────────────────────────────────────────
     signOut: () => supabase.auth.signOut(),
