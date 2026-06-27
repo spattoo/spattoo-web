@@ -91,7 +91,7 @@ export default function BakerApp() {
   // baker profile/settings/catalog via the apiClient (orderMode defaults to 'baker').
   return (
     <>
-      <CakeDesigner apiClient={api} supabase={supabase} onShareStore={() => setShareStoreOpen(true)} />
+      <CakeDesigner apiClient={api} supabase={supabase} cfAssetsBase={process.env.NEXT_PUBLIC_ASSETS_BASE} onShareStore={() => setShareStoreOpen(true)} />
       {baker.slug && (
         <ShareStoreModal
           open={shareStoreOpen}
