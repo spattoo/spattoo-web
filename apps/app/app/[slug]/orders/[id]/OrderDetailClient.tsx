@@ -139,7 +139,7 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
       )}
       {order.status === "requested" && <p style={S.meta}>Your request is with {bakerName}. You&apos;ll get a price here soon.</p>}
       {order.status === "quote_approved" && (
-        <p style={S.ok}>You&apos;re happy with the price — lovely! {order.advance_amount != null ? `Pay the ₹${order.advance_amount} advance` : "Pay the advance"} and {bakerName} will confirm your order. Use the buttons below to reach them.</p>
+        <p style={S.ok}>{bakerName} has requested {order.advance_amount != null ? `a payment of ₹${order.advance_amount}` : "a payment"} as advance to confirm your order. Please reach out to them for the payment details.</p>
       )}
       {order.status === "confirmed" && <p style={S.ok}>Confirmed — thank you! {bakerName} is on it.</p>}
 
