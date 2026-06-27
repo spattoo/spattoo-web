@@ -158,6 +158,12 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
       }),
     cancelSubscription: () => authFetch("/api/billing/cancel", { method: "POST" }),
 
+    // ── Self-signup (free Spark tier; no payment) ─────────────────────────────
+    checkSlug: (slug: string) =>
+      publicGet(`/api/bakers/slug-available?slug=${encodeURIComponent(slug)}`),
+    createBakerSelf: (payload: unknown) =>
+      authFetch("/api/bakers/self", { method: "POST", body: JSON.stringify(payload) }),
+
     // ── Account ───────────────────────────────────────────────────────────────
     signOut: () => supabase.auth.signOut(),
     changePassword: (password: string) => supabase.auth.updateUser({ password }),
