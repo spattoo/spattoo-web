@@ -86,6 +86,7 @@ export default function Home() {
       <Contact />
 
       {/* Footer */}
+      {/* dev-deploy-pipeline-test — safe to revert */}
       <footer className="py-10 px-8 border-t border-[#3d5247]/20 text-center">
         <p className="text-sm text-[#edeae3]/75">
           © {new Date().getFullYear()} Spattoo ·{" "}
