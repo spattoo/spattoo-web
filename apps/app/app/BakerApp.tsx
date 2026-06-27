@@ -7,6 +7,7 @@ import { getSupabase } from "../lib/supabase";
 import { makeBakerApiClient } from "../lib/bakerApi";
 import { setTelemetryContext } from "../lib/telemetry";
 import { bridgeCoreTelemetryToSentry } from "../lib/coreTelemetryBridge";
+import ShareStoreModal from "../components/ShareStoreModal";
 
 // The full baker tool (designer + dashboard + OrdersPanel/Send quote + edit-in-3D).
 // Heavy WebGL — client-only. Same component as core's :5173 dev harness.
@@ -24,7 +25,11 @@ export default function BakerApp() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
-  const [baker, setBaker] = useState<{ slug?: string; primary_color?: string } | null>(null);
+  const [baker, setBaker] = useState<{
+    slug?: string; name?: string; tagline?: string | null;
+    logo_url?: string | null; primary_color?: string | null;
+  } | null>(null);
+  const [shareStoreOpen, setShareStoreOpen] = useState(false);
   // A logged-in user with no baker yet (self-signup before profile completion) →
   // profile fetch 404s ("No baker account found"); route them to setup instead of
   // hanging on "Loading your shop…".
@@ -84,7 +89,22 @@ export default function BakerApp() {
   // Full baker tool — lands on the designer; Orders (with Send quote) + edit-in-3D
   // live inside it, exactly like the :5173 dev harness. CakeDesigner self-loads
   // baker profile/settings/catalog via the apiClient (orderMode defaults to 'baker').
-  return <CakeDesigner apiClient={api} supabase={supabase} />;
+  return (
+    <>
+      <CakeDesigner apiClient={api} supabase={supabase} onShareStore={() => setShareStoreOpen(true)} />
+      {baker.slug && (
+        <ShareStoreModal
+          open={shareStoreOpen}
+          onClose={() => setShareStoreOpen(false)}
+          slug={baker.slug}
+          name={baker.name}
+          tagline={baker.tagline}
+          logoUrl={baker.logo_url}
+          brandColor={baker.primary_color}
+        />
+      )}
+    </>
+  );
 }
 
 // Login by default. Self-signup is built but intentionally UNLINKED for now — it only
