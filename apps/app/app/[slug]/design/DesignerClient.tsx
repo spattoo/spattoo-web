@@ -39,6 +39,7 @@ export default function DesignerClient({ slug }: { slug: string }) {
     <CakeDesigner
       apiClient={apiClient}
       supabase={supabase}
+      cfAssetsBase={process.env.NEXT_PUBLIC_ASSETS_BASE}
       orderMode="customer"
       onQuoteRequested={(result: { orderId?: string }) => {
         const orderId = result?.orderId;
