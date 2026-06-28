@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase } from "../lib/supabase";
-import { BASE_DOMAIN } from "../lib/domain";
+import { BASE_DOMAIN, MARKETING_URL } from "../lib/domain";
 import { makeBakerApiClient } from "../lib/bakerApi";
 import { setTelemetryContext } from "../lib/telemetry";
 import { bridgeCoreTelemetryToSentry } from "../lib/coreTelemetryBridge";
@@ -42,7 +42,12 @@ export default function BakerApp() {
       setSession(data.session);
       setReady(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      // On sign-out, send the baker to the marketing site (symmetric with the
+      // marketing "Sign in" CTA). Covers both sign-out paths + session loss.
+      if (event === "SIGNED_OUT") { window.location.href = MARKETING_URL; return; }
+      setSession(s);
+    });
     return () => sub.subscription.unsubscribe();
   }, [supabase]);
 

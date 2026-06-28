@@ -11,3 +11,7 @@ export const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN || "spattoo.com";
 export function storefrontUrl(slug: string): string {
   return `https://${slug}.${BASE_DOMAIN}`;
 }
+
+// Marketing site (canonical = www; the apex 308-redirects to it). Where bakers
+// land after signing out. www.spattoo.dev in dev, www.spattoo.com in prod.
+export const MARKETING_URL = `https://www.${BASE_DOMAIN}`;
