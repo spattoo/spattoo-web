@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase } from "../lib/supabase";
@@ -17,9 +18,9 @@ const CakeDesigner = dynamic(
   { ssr: false, loading: () => <Centered>Loading…</Centered> }
 );
 
-// Decorative 3D backdrop for the sign-in panel — client-only (WebGL), lazy so it
-// never blocks the form. The dark panel shows instantly; the scene fades in.
-const LoginScene = dynamic(() => import("../components/LoginScene"), { ssr: false });
+// Lightweight 3D grid backdrop for the sign-in — client-only (WebGL), lazy so it
+// never blocks the form. The dark page shows instantly; the grid paints in.
+const LoginGrid = dynamic(() => import("../components/LoginGrid"), { ssr: false });
 
 // The baker app surface (app.spattoo.com / localhost root): Supabase login →
 // the full CakeDesigner in baker mode. It self-loads baker data via the apiClient
@@ -159,72 +160,70 @@ function BakerLogin({
   }
 
   const field =
-    "w-full rounded-xl border border-[#E0DDD8] bg-white px-3.5 py-3 text-sm text-[#2A2024] " +
-    "placeholder:text-[#bdb6b0] outline-none transition focus:border-[#6b8f7e] focus:ring-2 focus:ring-[#6b8f7e]/20";
+    "w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-[#edeae3] " +
+    "placeholder:text-[#edeae3]/30 outline-none transition focus:border-[#6b8f7e] focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6b8f7e]/25";
 
   return (
-    <div className="min-h-screen flex bg-[#F4F1EC]">
-      {/* Left brand panel — 3D backdrop + tagline. Hidden on mobile. */}
-      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-[#0d0d0d] p-12 md:flex">
-        <div className="absolute inset-0">
-          <LoginScene />
-        </div>
-        {/* bottom gradient so the tagline stays legible over the shapes */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0d0d0d] via-[#0d0d0d]/30 to-transparent" />
-        <div className="relative z-10 text-2xl font-bold tracking-tight text-[#edeae3]">Spattoo</div>
-        <div className="relative z-10 max-w-md">
-          <h2 className="text-4xl font-bold leading-tight text-[#edeae3]">
-            Design cakes your customers can taste with their eyes.
-          </h2>
-          <p className="mt-4 text-[15px] text-[#edeae3]/60">The 3D cake studio for modern bakeries.</p>
-        </div>
+    <div className="relative min-h-screen overflow-hidden bg-[#111111]">
+      {/* On-brand grid backdrop (no heavy cake assets) */}
+      <div className="absolute inset-0">
+        <LoginGrid />
       </div>
+      {/* Subtle vignette so the form panel stays legible over the grid */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(17,17,17,0.45)_0%,rgba(17,17,17,0.82)_72%)]" />
 
-      {/* Right form panel */}
-      <div className="flex w-full items-center justify-center p-6 md:w-1/2">
-        <form onSubmit={signIn} className="w-full max-w-sm">
-          <div className="mb-8 text-xl font-bold tracking-tight text-[#2C4433] md:hidden">Spattoo</div>
+      <div className="relative z-10 flex min-h-screen flex-col">
+        {/* Cursive logo — dark-green source rendered light for the dark bg */}
+        <div className="p-6 md:p-10">
+          <Image src="/Spattoo-cursive.png" alt="Spattoo" width={120} height={43}
+            priority className="h-auto w-[112px] opacity-90 [filter:brightness(0)_invert(1)]" />
+        </div>
 
-          <h1 className="text-2xl font-bold text-[#2A2024]">Welcome back</h1>
-          <p className="mt-1 text-sm text-[#857d77]">Sign in to your cake studio.</p>
+        {/* Form — centred, the focus of the page */}
+        <div className="flex flex-1 items-center justify-center px-5 pb-16">
+          <form onSubmit={signIn}
+            className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#161616]/70 p-7 shadow-2xl backdrop-blur-md">
+            <h1 className="text-2xl font-bold text-[#edeae3]">Welcome back</h1>
+            <p className="mt-1 text-sm text-[#edeae3]/45">Sign in to continue.</p>
 
-          <div className="mt-7 flex flex-col gap-4">
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-[#4a423d]">Email</span>
-              <input type="email" autoComplete="email" placeholder="you@bakery.com" value={email}
-                onChange={(e) => setEmail(e.target.value)} className={field} />
-            </label>
+            <div className="mt-6 flex flex-col gap-4">
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Email</span>
+                <input type="email" autoComplete="email" placeholder="you@bakery.com" value={email}
+                  onChange={(e) => setEmail(e.target.value)} className={field} />
+              </label>
 
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-[#4a423d]">Password</span>
-              <div className="relative">
-                <input type={showPw ? "text" : "password"} autoComplete="current-password" placeholder="••••••••"
-                  value={password} onChange={(e) => setPassword(e.target.value)} className={`${field} pr-11`} />
-                <button type="button" onClick={() => setShowPw((v) => !v)}
-                  aria-label={showPw ? "Hide password" : "Show password"}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[#9a928c] transition hover:text-[#4a423d]">
-                  {showPw ? <EyeOff /> : <Eye />}
-                </button>
-              </div>
-            </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Password</span>
+                <div className="relative">
+                  <input type={showPw ? "text" : "password"} autoComplete="current-password" placeholder="••••••••"
+                    value={password} onChange={(e) => setPassword(e.target.value)} className={`${field} pr-11`} />
+                  <button type="button" onClick={() => setShowPw((v) => !v)}
+                    aria-label={showPw ? "Hide password" : "Show password"}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[#edeae3]/40 transition hover:text-[#edeae3]/80">
+                    {showPw ? <EyeOff /> : <Eye />}
+                  </button>
+                </div>
+              </label>
 
-            {err && <p className="text-sm font-semibold text-[#C0392B]">{err}</p>}
+              {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
 
-            <button type="submit" disabled={busy || !email || !password}
-              className="mt-1 rounded-xl bg-[#2C4433] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#23362a] disabled:cursor-not-allowed disabled:opacity-50">
-              {busy ? "Signing in…" : "Sign in"}
-            </button>
-          </div>
-
-          <div className="mt-6 flex items-center justify-between text-sm">
-            {showSignup ? (
-              <button type="button" onClick={onSignup} className="font-semibold text-[#6B8C74] hover:underline">
-                Create an account
+              <button type="submit" disabled={busy || !email || !password}
+                className="mt-1 rounded-xl bg-[#6b8f7e] px-4 py-3 text-sm font-bold text-[#0e1a14] transition hover:bg-[#7ba18e] disabled:cursor-not-allowed disabled:opacity-40">
+                {busy ? "Signing in…" : "Sign in"}
               </button>
-            ) : <span />}
-            <a href={MARKETING_URL} className="text-[#9a928c] transition hover:text-[#4a423d]">← Back to {BASE_DOMAIN}</a>
-          </div>
-        </form>
+            </div>
+
+            <div className="mt-6 flex items-center justify-between text-sm">
+              {showSignup ? (
+                <button type="button" onClick={onSignup} className="font-semibold text-[#a8c5b5] hover:underline">
+                  Create an account
+                </button>
+              ) : <span />}
+              <a href={MARKETING_URL} className="text-[#edeae3]/40 transition hover:text-[#edeae3]/80">← Back to {BASE_DOMAIN}</a>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
