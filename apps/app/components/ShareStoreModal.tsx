@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { composeStoreShareCard } from "../lib/storeShareCard";
 import { shareOrDownload } from "../lib/shareDesign";
+import { BASE_DOMAIN } from "../lib/domain";
 
 // Baker-side "share your store" modal, opened from the designer sidebar. Composes
 // the store promo card (logo + tagline + CTA + QR) and lets the baker share it to
@@ -22,7 +23,7 @@ export type ShareStoreModalProps = {
 // The baker's public storefront URL, derived from the current host (app.X → slug.X,
 // or slug.localhost:port in dev). The QR/share always points at the storefront.
 function storefront(slug: string): { full: string; display: string } {
-  if (typeof window === "undefined") return { full: `https://${slug}.spattoo.com`, display: `${slug}.spattoo.com` };
+  if (typeof window === "undefined") return { full: `https://${slug}.${BASE_DOMAIN}`, display: `${slug}.${BASE_DOMAIN}` };
   const { protocol, host } = window.location;
   const base = host.replace(/^app\./, "");
   const sfHost = `${slug}.${base}`;

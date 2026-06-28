@@ -6,6 +6,7 @@ import { getSupabase } from "../../../lib/supabase";
 import { makeCustomerApiClient } from "../../../lib/api";
 import { composeShareCard } from "../../../lib/shareCard";
 import { shareOrDownload } from "../../../lib/shareDesign";
+import { storefrontUrl } from "../../../lib/domain";
 
 type Baker = { name: string; logoUrl: string | null; brandColor: string | null };
 
@@ -20,9 +21,9 @@ export default function QuoteSentClient({ slug, orderId }: { slug: string; order
   const [card, setCard] = useState<{ previewUrl: string; blob: Blob } | null>(null);
   const [errored, setErrored] = useState(false);
 
-  const storefrontUrl =
-    typeof window !== "undefined" ? window.location.origin : `https://${slug}.spattoo.com`;
-  const displayUrl = storefrontUrl.replace(/^https?:\/\//, "");
+  const storefrontOrigin =
+    typeof window !== "undefined" ? window.location.origin : storefrontUrl(slug);
+  const displayUrl = storefrontOrigin.replace(/^https?:\/\//, "");
   const bakerName = baker?.name?.trim() || "the baker";
 
   // Baker branding (name + logo + colour) for the card and copy.
@@ -75,9 +76,9 @@ export default function QuoteSentClient({ slug, orderId }: { slug: string; order
     await shareOrDownload(card.blob, {
       filename: "my-cake-design.png",
       text: `Design your own cake at ${displayUrl}`,
-      url: storefrontUrl,
+      url: storefrontOrigin,
     });
-  }, [card, displayUrl, storefrontUrl]);
+  }, [card, displayUrl, storefrontOrigin]);
 
   const brand = baker?.brandColor || "#7c8b54";
   const noDesign = !orderId || errored;

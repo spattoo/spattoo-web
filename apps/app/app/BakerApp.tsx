@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase } from "../lib/supabase";
+import { BASE_DOMAIN } from "../lib/domain";
 import { makeBakerApiClient } from "../lib/bakerApi";
 import { setTelemetryContext } from "../lib/telemetry";
 import { bridgeCoreTelemetryToSentry } from "../lib/coreTelemetryBridge";
@@ -291,7 +292,7 @@ function SetupBaker({
         <input style={L.input} placeholder="Bakery name" value={name} onChange={(e) => setName(e.target.value)} />
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 13, color: "#999" }}>spattoo.com/</span>
+            <span style={{ fontSize: 13, color: "#999" }}>{BASE_DOMAIN}/</span>
             <input style={{ ...L.input, flex: 1 }} placeholder="your-shop" value={slug}
               onChange={(e) => { setSlugEdited(true); setSlug(derive(e.target.value)); }} />
           </div>

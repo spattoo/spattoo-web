@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { BASE_DOMAIN } from "./lib/domain";
 
-// Host-based routing for the app surface:
-//   {slug}.spattoo.com/*  → /[slug]/*   (the baker's customer storefront)
-//   app.spattoo.com/*     → /*          (the baker app; 'app' is reserved)
-//   localhost/*           → /*          (use /[slug] paths directly in dev)
+// Host-based routing for the app surface (base domain is env-driven — spattoo.com
+// in prod, spattoo.dev in dev — so this same code serves every environment):
+//   {slug}.<base>/*  → /[slug]/*   (the baker's customer storefront)
+//   app.<base>/*     → /*          (the baker app; 'app' is reserved)
+//   {slug}.localhost → /[slug]/*   (local dev; always supported)
 //
 // Rewriting (not redirecting) keeps the customer on ONE origin through the whole
 // journey, so the Supabase session set during login persists. Subdomains other
@@ -11,11 +13,17 @@ import { NextRequest, NextResponse } from "next/server";
 const RESERVED = new Set(["www", "app", "api", "admin", "assets"]);
 
 function bakerSubdomain(hostname: string): string | null {
-  let sub: string | null = null;
-  if (hostname.endsWith(".spattoo.com")) sub = hostname.split(".")[0];
-  else if (hostname.endsWith(".localhost")) sub = hostname.split(".")[0];
-  if (!sub || RESERVED.has(sub)) return null;
-  return sub;
+  // Try the configured base domain first, then localhost (always on for dev).
+  for (const base of [BASE_DOMAIN, "localhost"]) {
+    const suffix = `.${base}`;
+    if (!hostname.endsWith(suffix)) continue;
+    const head = hostname.slice(0, -suffix.length);
+    // Require exactly ONE label (no nested dots) so a.b.<base> never silently
+    // resolves to "a"; reserved labels (app/www/…) are not bakers.
+    if (!head || head.includes(".") || RESERVED.has(head)) return null;
+    return head;
+  }
+  return null;
 }
 
 export function middleware(req: NextRequest) {
