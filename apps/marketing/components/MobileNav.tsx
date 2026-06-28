@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { APP_URL, SHOW_SIGNIN } from "../lib/domain";
 
 const links = [
   { label: "How It Works", href: "#how-it-works" },
@@ -73,11 +74,24 @@ export default function MobileNav({ onJoinWaitlist }: { onJoinWaitlist: () => vo
                 </motion.a>
               ))}
 
+              {SHOW_SIGNIN && (
+                <motion.a
+                  href={APP_URL}
+                  onClick={() => setOpen(false)}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 + links.length * 0.07, duration: 0.3 }}
+                  className="text-4xl font-bold text-[#edeae3]/80 hover:text-[#edeae3] transition-colors py-3 border-b border-[#edeae3]/8"
+                >
+                  Sign in
+                </motion.a>
+              )}
+
               <motion.button
                 onClick={() => { setOpen(false); onJoinWaitlist(); }}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 + links.length * 0.07, duration: 0.3 }}
+                transition={{ delay: 0.05 + (links.length + (SHOW_SIGNIN ? 1 : 0)) * 0.07, duration: 0.3 }}
                 className="mt-8 self-start px-8 py-3.5 rounded-full border border-[#6b8f7e]/50 text-[#a8c5b5] text-sm font-medium cursor-pointer"
               >
                 Join Waitlist
