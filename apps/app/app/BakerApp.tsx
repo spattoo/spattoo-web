@@ -17,6 +17,10 @@ const CakeDesigner = dynamic(
   { ssr: false, loading: () => <Centered>Loading…</Centered> }
 );
 
+// Decorative 3D backdrop for the sign-in panel — client-only (WebGL), lazy so it
+// never blocks the form. The dark panel shows instantly; the scene fades in.
+const LoginScene = dynamic(() => import("../components/LoginScene"), { ssr: false });
+
 // The baker app surface (app.spattoo.com / localhost root): Supabase login →
 // the full CakeDesigner in baker mode. It self-loads baker data via the apiClient
 // and contains the order management + Send quote + edit-in-3D.
@@ -143,6 +147,8 @@ function BakerLogin({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const [showPw, setShowPw] = useState(false);
+
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -152,21 +158,93 @@ function BakerLogin({
     setBusy(false);
   }
 
+  const field =
+    "w-full rounded-xl border border-[#E0DDD8] bg-white px-3.5 py-3 text-sm text-[#2A2024] " +
+    "placeholder:text-[#bdb6b0] outline-none transition focus:border-[#6b8f7e] focus:ring-2 focus:ring-[#6b8f7e]/20";
+
   return (
-    <div style={L.wrap}>
-      <form onSubmit={signIn} style={L.card}>
-        <h1 style={L.h1}>Baker sign in</h1>
-        <input style={L.input} type="email" placeholder="Email" value={email}
-          onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-        <input style={L.input} type="password" placeholder="Password" value={password}
-          onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-        <button style={L.btn} disabled={busy || !email || !password}>{busy ? "Signing in…" : "Sign in"}</button>
-        {err && <p style={L.err}>{err}</p>}
-        {showSignup && (
-          <button type="button" onClick={onSignup} style={L.link}>New to Spattoo? Create an account</button>
-        )}
-      </form>
+    <div className="min-h-screen flex bg-[#F4F1EC]">
+      {/* Left brand panel — 3D backdrop + tagline. Hidden on mobile. */}
+      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-[#0d0d0d] p-12 md:flex">
+        <div className="absolute inset-0">
+          <LoginScene />
+        </div>
+        {/* bottom gradient so the tagline stays legible over the shapes */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0d0d0d] via-[#0d0d0d]/30 to-transparent" />
+        <div className="relative z-10 text-2xl font-bold tracking-tight text-[#edeae3]">Spattoo</div>
+        <div className="relative z-10 max-w-md">
+          <h2 className="text-4xl font-bold leading-tight text-[#edeae3]">
+            Design cakes your customers can taste with their eyes.
+          </h2>
+          <p className="mt-4 text-[15px] text-[#edeae3]/60">The 3D cake studio for modern bakeries.</p>
+        </div>
+      </div>
+
+      {/* Right form panel */}
+      <div className="flex w-full items-center justify-center p-6 md:w-1/2">
+        <form onSubmit={signIn} className="w-full max-w-sm">
+          <div className="mb-8 text-xl font-bold tracking-tight text-[#2C4433] md:hidden">Spattoo</div>
+
+          <h1 className="text-2xl font-bold text-[#2A2024]">Welcome back</h1>
+          <p className="mt-1 text-sm text-[#857d77]">Sign in to your cake studio.</p>
+
+          <div className="mt-7 flex flex-col gap-4">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-[#4a423d]">Email</span>
+              <input type="email" autoComplete="email" placeholder="you@bakery.com" value={email}
+                onChange={(e) => setEmail(e.target.value)} className={field} />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-[#4a423d]">Password</span>
+              <div className="relative">
+                <input type={showPw ? "text" : "password"} autoComplete="current-password" placeholder="••••••••"
+                  value={password} onChange={(e) => setPassword(e.target.value)} className={`${field} pr-11`} />
+                <button type="button" onClick={() => setShowPw((v) => !v)}
+                  aria-label={showPw ? "Hide password" : "Show password"}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[#9a928c] transition hover:text-[#4a423d]">
+                  {showPw ? <EyeOff /> : <Eye />}
+                </button>
+              </div>
+            </label>
+
+            {err && <p className="text-sm font-semibold text-[#C0392B]">{err}</p>}
+
+            <button type="submit" disabled={busy || !email || !password}
+              className="mt-1 rounded-xl bg-[#2C4433] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#23362a] disabled:cursor-not-allowed disabled:opacity-50">
+              {busy ? "Signing in…" : "Sign in"}
+            </button>
+          </div>
+
+          <div className="mt-6 flex items-center justify-between text-sm">
+            {showSignup ? (
+              <button type="button" onClick={onSignup} className="font-semibold text-[#6B8C74] hover:underline">
+                Create an account
+              </button>
+            ) : <span />}
+            <a href={MARKETING_URL} className="text-[#9a928c] transition hover:text-[#4a423d]">← Back to {BASE_DOMAIN}</a>
+          </div>
+        </form>
+      </div>
     </div>
+  );
+}
+
+// Inline icons for the password show/hide toggle (no icon dep).
+function Eye() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="h-5 w-5">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+function EyeOff() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="h-5 w-5">
+      <path d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.2 4.2M9.9 4.8A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.3 4M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a10.4 10.4 0 0 0 3.4-.6"
+        strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
