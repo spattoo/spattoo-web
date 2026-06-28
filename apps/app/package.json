@@ -2,6 +2,11 @@
   "name": "app",
   "version": "0.1.0",
   "private": true,
+  "browserslist": [
+    "defaults",
+    "safari >= 15",
+    "ios_saf >= 15"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
