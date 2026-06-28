@@ -173,10 +173,13 @@ function BakerLogin({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(17,17,17,0.45)_0%,rgba(17,17,17,0.82)_72%)]" />
 
       <div className="relative z-10 flex min-h-screen flex-col">
-        {/* Cursive logo — dark-green source rendered light for the dark bg */}
+        {/* Cursive logo — same treatment as the marketing site; clicking it goes
+            home (the marketing site). No www/app jargon shown to the user. */}
         <div className="p-6 md:p-10">
-          <Image src="/Spattoo-cursive.png" alt="Spattoo" width={120} height={43}
-            priority className="h-auto w-[112px] opacity-90 [filter:brightness(0)_invert(1)]" />
+          <a href={MARKETING_URL} aria-label="Go to Spattoo home" className="inline-block">
+            <Image src="/Spattoo-cursive.png" alt="Spattoo" width={120} height={43}
+              priority className="h-auto w-[120px] [filter:drop-shadow(0_0_16px_rgba(237,234,227,0.22))]" />
+          </a>
         </div>
 
         {/* Form — centred, the focus of the page */}
@@ -214,14 +217,13 @@ function BakerLogin({
               </button>
             </div>
 
-            <div className="mt-6 flex items-center justify-between text-sm">
-              {showSignup ? (
+            {showSignup && (
+              <div className="mt-6 text-sm">
                 <button type="button" onClick={onSignup} className="font-semibold text-[#a8c5b5] hover:underline">
                   Create an account
                 </button>
-              ) : <span />}
-              <a href={MARKETING_URL} className="text-[#edeae3]/40 transition hover:text-[#edeae3]/80">← Back to {BASE_DOMAIN}</a>
-            </div>
+              </div>
+            )}
           </form>
         </div>
       </div>
@@ -398,7 +400,7 @@ function SetupBaker({
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif", color: "#777" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif", background: "#111111", color: "rgba(237,234,227,0.5)" }}>
       {children}
     </div>
   );

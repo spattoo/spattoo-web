@@ -4,4 +4,8 @@ html,
 body {
   margin: 0;
   padding: 0;
+  /* Dark base so the redirect into the app + the loading state never flash white
+     before the dark sign-in paints. Full-screen surfaces (designer, setup) draw
+     their own background over this. */
+  background: #111111;
 }
