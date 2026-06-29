@@ -27,7 +27,13 @@ export function makeCustomerApiClient(supabase: SupabaseClient, slug: string) {
     const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
     if (!res.ok) {
       const e = await res.json().catch(() => ({}));
-      throw new Error(e.error ?? `API ${res.status}`);
+      // Preserve the server's machine code + HTTP status so callers can branch
+      // (e.g. BAKER_INACTIVE / ORDER_LIMIT_REACHED) instead of string-matching.
+      const err = Object.assign(new Error(e.error ?? `API ${res.status}`), {
+        code: e.code as string | undefined,
+        status: res.status,
+      });
+      throw err;
     }
     return res.json();
   }

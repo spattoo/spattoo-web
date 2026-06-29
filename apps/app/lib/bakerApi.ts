@@ -21,7 +21,13 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
     const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
     if (!res.ok) {
       const e = await res.json().catch(() => ({}));
-      throw new Error(e.error ?? `API ${res.status}`);
+      // Preserve the server's machine code + HTTP status so callers can branch
+      // (e.g. BAKER_INACTIVE / ORDER_LIMIT_REACHED) instead of string-matching.
+      const err = Object.assign(new Error(e.error ?? `API ${res.status}`), {
+        code: e.code as string | undefined,
+        status: res.status,
+      });
+      throw err;
     }
     return res.json();
   }
@@ -148,6 +154,9 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
 
     // ── Billing / subscription ────────────────────────────────────────────────
     fetchBillingStatus: () => authGet("/api/billing/status"),
+    // Resolved entitlements + usage (e.g. orders_used vs max_orders_total) for the
+    // baker — drives the "X of N orders used / upgrade" surface.
+    fetchEntitlements: () => authGet("/api/baker/entitlements"),
     fetchBillingPeriods: () => authGet("/api/billing/periods"),
     fetchSubscriptionHistory: () => authGet("/api/baker/subscription/history"),
     activateSparkPlan: () => authFetch("/api/billing/activate-spark", { method: "POST" }),
