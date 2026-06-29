@@ -95,7 +95,7 @@ export default function BakerApp() {
       />
     );
   }
-  if (!baker) return <Centered>Loading your shop…</Centered>;
+  if (!baker) return <Centered>Loading your store…</Centered>;
 
   // Full baker tool — lands on the designer; Orders (with Send quote) + edit-in-3D
   // live inside it, exactly like the :5173 dev harness. CakeDesigner self-loads
@@ -140,6 +140,43 @@ function AuthScreen({ supabase }: { supabase: ReturnType<typeof getSupabase> }) 
   );
 }
 
+// Shared chrome for the auth screens (sign in / sign up): on-brand grid backdrop,
+// vignette, logo, centred panel. Keeps the look in ONE place for both screens.
+function AuthShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-[#111111]">
+      {/* On-brand grid backdrop (no heavy cake assets) */}
+      <div className="absolute inset-0">
+        <LoginGrid />
+      </div>
+      {/* Subtle vignette so the form panel stays legible over the grid */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(17,17,17,0.45)_0%,rgba(17,17,17,0.82)_72%)]" />
+
+      <div className="relative z-10 flex min-h-screen flex-col">
+        {/* Cursive logo — clicking it goes home (the marketing site). */}
+        <div className="p-6 md:p-10">
+          <a href={MARKETING_URL} aria-label="Go to Spattoo home" className="inline-block">
+            <Image src="/Spattoo-cursive.png" alt="Spattoo" width={120} height={43}
+              priority className="h-auto w-[120px] [filter:drop-shadow(0_0_16px_rgba(237,234,227,0.22))]" />
+          </a>
+        </div>
+
+        {/* Panel — centred, the focus of the page */}
+        <div className="flex flex-1 items-center justify-center px-5 pb-16">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+// Shared field / card / button styling for the auth panels.
+const AUTH_FIELD =
+  "w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-[#edeae3] " +
+  "placeholder:text-[#edeae3]/30 outline-none transition focus:border-[#6b8f7e] focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6b8f7e]/25";
+const AUTH_CARD =
+  "w-full max-w-sm rounded-2xl border border-white/10 bg-[#161616]/70 p-7 shadow-2xl backdrop-blur-md";
+const AUTH_BTN =
+  "rounded-xl bg-[#6b8f7e] px-4 py-3 text-sm font-bold text-[#0e1a14] transition hover:bg-[#7ba18e] disabled:cursor-not-allowed disabled:opacity-40";
+
 function BakerLogin({
   supabase, showSignup, onSignup,
 }: { supabase: ReturnType<typeof getSupabase>; showSignup?: boolean; onSignup?: () => void }) {
@@ -159,75 +196,48 @@ function BakerLogin({
     setBusy(false);
   }
 
-  const field =
-    "w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-[#edeae3] " +
-    "placeholder:text-[#edeae3]/30 outline-none transition focus:border-[#6b8f7e] focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6b8f7e]/25";
-
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#111111]">
-      {/* On-brand grid backdrop (no heavy cake assets) */}
-      <div className="absolute inset-0">
-        <LoginGrid />
-      </div>
-      {/* Subtle vignette so the form panel stays legible over the grid */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(17,17,17,0.45)_0%,rgba(17,17,17,0.82)_72%)]" />
+    <AuthShell>
+      <form onSubmit={signIn} className={AUTH_CARD}>
+        <h1 className="text-2xl font-bold text-[#edeae3]">Welcome back</h1>
+        <p className="mt-1 text-sm text-[#edeae3]/45">Sign in to continue.</p>
 
-      <div className="relative z-10 flex min-h-screen flex-col">
-        {/* Cursive logo — same treatment as the marketing site; clicking it goes
-            home (the marketing site). No www/app jargon shown to the user. */}
-        <div className="p-6 md:p-10">
-          <a href={MARKETING_URL} aria-label="Go to Spattoo home" className="inline-block">
-            <Image src="/Spattoo-cursive.png" alt="Spattoo" width={120} height={43}
-              priority className="h-auto w-[120px] [filter:drop-shadow(0_0_16px_rgba(237,234,227,0.22))]" />
-          </a>
-        </div>
+        <div className="mt-6 flex flex-col gap-4">
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Email</span>
+            <input type="email" autoComplete="email" placeholder="you@bakery.com" value={email}
+              onChange={(e) => setEmail(e.target.value)} className={AUTH_FIELD} />
+          </label>
 
-        {/* Form — centred, the focus of the page */}
-        <div className="flex flex-1 items-center justify-center px-5 pb-16">
-          <form onSubmit={signIn}
-            className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#161616]/70 p-7 shadow-2xl backdrop-blur-md">
-            <h1 className="text-2xl font-bold text-[#edeae3]">Welcome back</h1>
-            <p className="mt-1 text-sm text-[#edeae3]/45">Sign in to continue.</p>
-
-            <div className="mt-6 flex flex-col gap-4">
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Email</span>
-                <input type="email" autoComplete="email" placeholder="you@bakery.com" value={email}
-                  onChange={(e) => setEmail(e.target.value)} className={field} />
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Password</span>
-                <div className="relative">
-                  <input type={showPw ? "text" : "password"} autoComplete="current-password" placeholder="••••••••"
-                    value={password} onChange={(e) => setPassword(e.target.value)} className={`${field} pr-11`} />
-                  <button type="button" onClick={() => setShowPw((v) => !v)}
-                    aria-label={showPw ? "Hide password" : "Show password"}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[#edeae3]/40 transition hover:text-[#edeae3]/80">
-                    {showPw ? <EyeOff /> : <Eye />}
-                  </button>
-                </div>
-              </label>
-
-              {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
-
-              <button type="submit" disabled={busy || !email || !password}
-                className="mt-1 rounded-xl bg-[#6b8f7e] px-4 py-3 text-sm font-bold text-[#0e1a14] transition hover:bg-[#7ba18e] disabled:cursor-not-allowed disabled:opacity-40">
-                {busy ? "Signing in…" : "Sign in"}
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Password</span>
+            <div className="relative">
+              <input type={showPw ? "text" : "password"} autoComplete="current-password" placeholder="••••••••"
+                value={password} onChange={(e) => setPassword(e.target.value)} className={`${AUTH_FIELD} pr-11`} />
+              <button type="button" onClick={() => setShowPw((v) => !v)}
+                aria-label={showPw ? "Hide password" : "Show password"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[#edeae3]/40 transition hover:text-[#edeae3]/80">
+                {showPw ? <EyeOff /> : <Eye />}
               </button>
             </div>
+          </label>
 
-            {showSignup && (
-              <div className="mt-6 text-sm">
-                <button type="button" onClick={onSignup} className="font-semibold text-[#a8c5b5] hover:underline">
-                  Create an account
-                </button>
-              </div>
-            )}
-          </form>
+          {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
+
+          <button type="submit" disabled={busy || !email || !password} className={`${AUTH_BTN} mt-1`}>
+            {busy ? "Signing in…" : "Sign in"}
+          </button>
         </div>
-      </div>
-    </div>
+
+        {showSignup && (
+          <div className="mt-6 text-sm">
+            <button type="button" onClick={onSignup} className="font-semibold text-[#a8c5b5] hover:underline">
+              Create an account
+            </button>
+          </div>
+        )}
+      </form>
+    </AuthShell>
   );
 }
 
@@ -256,12 +266,19 @@ function BakerSignup({
 }: { supabase: ReturnType<typeof getSupabase>; onBack: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
 
+  // Mismatch surfaces only once they've started typing the confirmation.
+  const mismatch = confirm.length > 0 && password !== confirm;
+
   async function signUp(e: React.FormEvent) {
     e.preventDefault();
+    if (password !== confirm) { setErr("Passwords do not match."); return; }
     setBusy(true);
     setErr(null);
     const { data, error } = await supabase.auth.signUp({ email, password });
@@ -274,32 +291,75 @@ function BakerSignup({
 
   if (sent) {
     return (
-      <div style={L.wrap}>
-        <div style={L.card}>
-          <h1 style={L.h1}>Check your email</h1>
-          <p style={{ fontSize: 14, color: "#555", margin: 0, lineHeight: 1.5 }}>
-            We sent a verification link to <b>{email}</b>. Confirm it, then sign in to
-            finish setting up your shop.
+      <AuthShell>
+        <div className={AUTH_CARD}>
+          <h1 className="text-2xl font-bold text-[#edeae3]">Check your email</h1>
+          <p className="mt-2 text-sm leading-relaxed text-[#edeae3]/55">
+            We sent a verification link to <b className="text-[#edeae3]/80">{email}</b>. Confirm it,
+            then sign in to finish setting up your brand.
           </p>
-          <button type="button" onClick={onBack} style={L.btn}>Back to sign in</button>
+          <button type="button" onClick={onBack} className={`${AUTH_BTN} mt-5 w-full`}>Back to sign in</button>
         </div>
-      </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div style={L.wrap}>
-      <form onSubmit={signUp} style={L.card}>
-        <h1 style={L.h1}>Create your baker account</h1>
-        <input style={L.input} type="email" placeholder="Email" value={email}
-          onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-        <input style={L.input} type="password" placeholder="Password (min 6 chars)" value={password}
-          onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
-        <button style={L.btn} disabled={busy || !email || password.length < 6}>{busy ? "Creating…" : "Create account"}</button>
-        {err && <p style={L.err}>{err}</p>}
-        <button type="button" onClick={onBack} style={L.link}>Already have an account? Sign in</button>
+    <AuthShell>
+      <form onSubmit={signUp} className={AUTH_CARD}>
+        <h1 className="text-2xl font-bold text-[#edeae3]">Create your baker account</h1>
+        <p className="mt-1 text-sm text-[#edeae3]/45">Start your free Spark trial.</p>
+
+        <div className="mt-6 flex flex-col gap-4">
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Email</span>
+            <input type="email" autoComplete="email" placeholder="you@bakery.com" value={email}
+              onChange={(e) => setEmail(e.target.value)} className={AUTH_FIELD} />
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Password</span>
+            <div className="relative">
+              <input type={showPw ? "text" : "password"} autoComplete="new-password" placeholder="At least 6 characters"
+                value={password} onChange={(e) => setPassword(e.target.value)} className={`${AUTH_FIELD} pr-11`} />
+              <button type="button" onClick={() => setShowPw((v) => !v)}
+                aria-label={showPw ? "Hide password" : "Show password"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[#edeae3]/40 transition hover:text-[#edeae3]/80">
+                {showPw ? <EyeOff /> : <Eye />}
+              </button>
+            </div>
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Confirm password</span>
+            <div className="relative">
+              <input type={showConfirm ? "text" : "password"} autoComplete="new-password" placeholder="Re-enter password"
+                value={confirm} onChange={(e) => setConfirm(e.target.value)}
+                className={`${AUTH_FIELD} pr-11 ${mismatch ? "border-[#ef9a9a]/60 focus:border-[#ef9a9a] focus:ring-[#ef9a9a]/25" : ""}`} />
+              <button type="button" onClick={() => setShowConfirm((v) => !v)}
+                aria-label={showConfirm ? "Hide password" : "Show password"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[#edeae3]/40 transition hover:text-[#edeae3]/80">
+                {showConfirm ? <EyeOff /> : <Eye />}
+              </button>
+            </div>
+            {mismatch && <p className="mt-1.5 text-xs font-semibold text-[#ef9a9a]">Passwords do not match.</p>}
+          </label>
+
+          {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
+
+          <button type="submit" disabled={busy || !email || password.length < 6 || password !== confirm}
+            className={`${AUTH_BTN} mt-1`}>
+            {busy ? "Creating…" : "Create account"}
+          </button>
+        </div>
+
+        <div className="mt-6 text-sm">
+          <button type="button" onClick={onBack} className="font-semibold text-[#a8c5b5] hover:underline">
+            Already have an account? Sign in
+          </button>
+        </div>
       </form>
-    </div>
+    </AuthShell>
   );
 }
 
@@ -361,40 +421,57 @@ function SetupBaker({
     firstName.trim() && lastName.trim() && name.trim() && slug.trim() &&
     slugState.available === true && !busy;
 
+  const slugStatus = !slug.trim() ? ""
+    : slugState.checking ? "Checking…"
+    : slugState.available === true ? "✓ Available"
+    : slugState.reason === "taken" ? "Already taken"
+    : slugState.reason === "reserved" ? "Reserved — pick another"
+    : slugState.available === false ? "Not a valid address" : "";
+  const slugColor = slugState.available === true ? "#8fd19e"
+    : slugState.available === false ? "#ef9a9a" : "rgba(237,234,227,0.4)";
+
   return (
-    <div style={L.wrap}>
-      <form onSubmit={submit} style={{ ...L.card, maxWidth: 420 }}>
-        <h1 style={L.h1}>Set up your shop</h1>
-        <p style={{ fontSize: 13.5, color: "#666", margin: "0 0 4px", lineHeight: 1.5 }}>
-          You&apos;re signed in as <b>{email}</b>. A couple of details and you&apos;re on the
-          free Spark plan.
+    <AuthShell>
+      <form onSubmit={submit} className={AUTH_CARD}>
+        <h1 className="text-2xl font-bold text-[#edeae3]">Set up your brand</h1>
+        <p className="mt-1 text-sm leading-relaxed text-[#edeae3]/45">
+          You&apos;re signed in as <b className="text-[#edeae3]/70">{email}</b>. A couple of details
+          and you&apos;re on the free Spark plan.
         </p>
-        <div style={{ display: "flex", gap: 10 }}>
-          <input style={L.input} placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-          <input style={L.input} placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-        </div>
-        <input style={L.input} placeholder="Bakery name" value={name} onChange={(e) => setName(e.target.value)} />
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 13, color: "#999" }}>{BASE_DOMAIN}/</span>
-            <input style={{ ...L.input, flex: 1 }} placeholder="your-shop" value={slug}
-              onChange={(e) => { setSlugEdited(true); setSlug(derive(e.target.value)); }} />
+
+        <div className="mt-6 flex flex-col gap-4">
+          <div className="flex gap-3">
+            <input className={AUTH_FIELD} placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            <input className={AUTH_FIELD} placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
           </div>
-          <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6, minHeight: 16,
-            color: slugState.available === true ? "#2E7D32" : slugState.available === false ? "#C0392B" : "#999" }}>
-            {!slug.trim() ? "" :
-              slugState.checking ? "Checking…" :
-              slugState.available === true ? "✓ Available" :
-              slugState.reason === "taken" ? "Already taken" :
-              slugState.reason === "reserved" ? "Reserved — pick another" :
-              slugState.available === false ? "Not a valid address" : ""}
+
+          <input className={AUTH_FIELD} placeholder="Bakery name" value={name} onChange={(e) => setName(e.target.value)} />
+
+          <div>
+            <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] pl-3.5 transition focus-within:border-[#6b8f7e] focus-within:bg-white/[0.06] focus-within:ring-2 focus-within:ring-[#6b8f7e]/25">
+              <span className="shrink-0 text-sm text-[#edeae3]/40">{BASE_DOMAIN}/</span>
+              <input
+                className="w-full bg-transparent py-3 pr-3.5 text-sm text-[#edeae3] outline-none placeholder:text-[#edeae3]/30"
+                placeholder="your-brand" value={slug}
+                onChange={(e) => { setSlugEdited(true); setSlug(derive(e.target.value)); }} />
+            </div>
+            <div className="mt-1.5 min-h-4 text-xs font-bold" style={{ color: slugColor }}>{slugStatus}</div>
           </div>
+
+          {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
+
+          <button type="submit" disabled={!canSubmit} className={`${AUTH_BTN} mt-1`}>
+            {busy ? "Creating your brand…" : "Create my brand"}
+          </button>
         </div>
-        <button style={L.btn} disabled={!canSubmit}>{busy ? "Creating your shop…" : "Create my shop"}</button>
-        {err && <p style={L.err}>{err}</p>}
-        <button type="button" onClick={onSignOut} style={L.link}>Sign out</button>
+
+        <div className="mt-6 text-sm">
+          <button type="button" onClick={onSignOut} className="font-semibold text-[#a8c5b5] hover:underline">
+            Sign out
+          </button>
+        </div>
       </form>
-    </div>
+    </AuthShell>
   );
 }
 
@@ -406,12 +483,3 @@ function Centered({ children }: { children: React.ReactNode }) {
   );
 }
 
-const L: Record<string, React.CSSProperties> = {
-  wrap: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif", background: "#F4F1EC", padding: 20 },
-  card: { width: "100%", maxWidth: 360, background: "#fff", borderRadius: 16, padding: 28, display: "flex", flexDirection: "column", gap: 12, boxShadow: "0 12px 30px rgba(60,40,45,0.08)" },
-  h1: { fontSize: 20, fontWeight: 800, margin: "0 0 6px", color: "#2A2024" },
-  input: { padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E0DDD8", fontSize: 14, fontFamily: "inherit", outline: "none", width: "100%", boxSizing: "border-box" },
-  btn: { padding: "12px", borderRadius: 10, border: "none", background: "#2C4433", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" },
-  err: { fontSize: 13, fontWeight: 700, color: "#C0392B", margin: 0 },
-  link: { background: "none", border: "none", color: "#6B8C74", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", padding: 4 },
-};
