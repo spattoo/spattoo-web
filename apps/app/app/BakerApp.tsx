@@ -125,7 +125,12 @@ function AuthScreen({ supabase }: { supabase: ReturnType<typeof getSupabase> }) 
   const [signupAllowed, setSignupAllowed] = useState(false);
 
   useEffect(() => {
-    setSignupAllowed(new URLSearchParams(window.location.search).get("signup") === "1");
+    // ?signup=1 (the marketing "Get started" CTA) opens straight on the create-
+    // account form — people who clicked "Get started" want to sign up, not log in.
+    // They can still switch to sign-in from there ("Already have an account?").
+    const wantsSignup = new URLSearchParams(window.location.search).get("signup") === "1";
+    setSignupAllowed(wantsSignup);
+    if (wantsSignup) setMode("signup");
   }, []);
 
   if (mode === "signup" && signupAllowed) {
@@ -288,7 +293,10 @@ function BakerSignup({
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: window.location.origin },
+      // role:"baker" in user_metadata lets the shared "Confirm sign up" email
+      // template branch: bakers get a verification LINK, customers (storefront
+      // OTP login) keep their sign-in CODE. Both flows share one Supabase project.
+      options: { emailRedirectTo: window.location.origin, data: { role: "baker" } },
     });
     if (error) { setErr(error.message); setBusy(false); return; }
     // If email confirmation is ON, there's no session yet → tell them to verify.
