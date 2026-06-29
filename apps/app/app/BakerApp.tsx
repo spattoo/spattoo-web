@@ -592,7 +592,7 @@ function SetupBaker({
               })}
               {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
               <button type="button" onClick={choosePlan} disabled={busy} className={`${AUTH_BTN} mt-1`}>
-                {busy ? "Saving…" : planMeta.storefront ? "Continue" : "Finish & enter studio"}
+                {busy ? "Saving…" : "Continue →"}
               </button>
             </div>
           </div>
