@@ -12,6 +12,17 @@ import { BASE_DOMAIN } from "./lib/domain";
 // than the reserved ones are treated as a baker slug.
 const RESERVED = new Set(["www", "app", "api", "admin", "assets"]);
 
+// Only the production base domain (spattoo.com) is allowed into search indexes.
+// Every other host — the spattoo.dev dev environment, Vercel preview URLs,
+// localhost — gets X-Robots-Tag: noindex so it stays publicly reachable but
+// never ranks and never competes with spattoo.com. Whitelisting prod (instead
+// of blacklisting .dev) means any new non-prod host is safe-by-default.
+function applyRobots(res: NextResponse, hostname: string): NextResponse {
+  const indexable = hostname === "spattoo.com" || hostname.endsWith(".spattoo.com");
+  if (!indexable) res.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return res;
+}
+
 function bakerSubdomain(hostname: string): string | null {
   // Try the configured base domain first, then localhost (always on for dev).
   for (const base of [BASE_DOMAIN, "localhost"]) {
@@ -26,17 +37,17 @@ function bakerSubdomain(hostname: string): string | null {
   return null;
 }
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const hostname = (req.headers.get("host") ?? "").split(":")[0];
   const slug = bakerSubdomain(hostname);
-  if (!slug) return NextResponse.next();
+  if (!slug) return applyRobots(NextResponse.next(), hostname);
 
   const url = req.nextUrl.clone();
   if (url.pathname === `/${slug}` || url.pathname.startsWith(`/${slug}/`)) {
-    return NextResponse.next();
+    return applyRobots(NextResponse.next(), hostname);
   }
   url.pathname = `/${slug}${url.pathname === "/" ? "" : url.pathname}`;
-  return NextResponse.rewrite(url);
+  return applyRobots(NextResponse.rewrite(url), hostname);
 }
 
 export const config = {
