@@ -420,10 +420,14 @@ function BakerSignup({
 // (Mirrors the marketing pricing for now; should later be driven by the plan +
 // entitlements API so it can't drift.)
 const WIZARD_PLANS = [
-  { name: "spark", label: "Spark", price: "Free",      storefront: false, blurb: "Design canvas · 10 orders" },
-  { name: "flame", label: "Flame", price: "₹999/mo",   storefront: true,  blurb: "Public storefront · unlimited orders" },
-  { name: "blaze", label: "Blaze", price: "₹2,499/mo", storefront: true,  blurb: "Custom branding & templates", popular: true },
-  { name: "forge", label: "Forge", price: "₹4,999/mo", storefront: true,  blurb: "Everything · unlimited team" },
+  { name: "spark", label: "Spark", price: "Free", storefront: false, blurb: "Design canvas · 10 orders",
+    features: ["Design canvas", "10 total orders", "1 team member", "Help-docs support"] },
+  { name: "flame", label: "Flame", price: "₹999/mo", storefront: true, blurb: "Public storefront · unlimited orders",
+    features: ["Everything in Spark", "Public storefront (yourname.spattoo.com)", "Unlimited orders", "WhatsApp notifications", "2 team members", "Email support"] },
+  { name: "blaze", label: "Blaze", price: "₹2,499/mo", storefront: true, blurb: "Custom branding & templates", popular: true,
+    features: ["Everything in Flame", "Custom templates", "Custom branding", "5 team members", "Priority chat support"] },
+  { name: "forge", label: "Forge", price: "₹4,999/mo", storefront: true, blurb: "Everything · unlimited team",
+    features: ["Everything in Blaze", "Unlimited team members", "Dedicated account manager"] },
 ] as const;
 
 // Post-signup brand wizard. Name + phone were already collected at signup (in auth
@@ -571,23 +575,42 @@ function SetupBaker({
               {WIZARD_PLANS.map((p) => {
                 const active = plan === p.name;
                 return (
-                  <button key={p.name} type="button" onClick={() => setPlan(p.name)}
-                    className="flex items-center justify-between rounded-xl border p-3.5 text-left transition"
+                  <div key={p.name} className="overflow-hidden rounded-xl border transition"
                     style={{
                       borderColor: active ? "#6b8f7e" : "rgba(255,255,255,0.1)",
                       backgroundColor: active ? "rgba(107,143,126,0.12)" : "rgba(255,255,255,0.03)",
                     }}>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-[#edeae3]">{p.label}</span>
-                        {"popular" in p && p.popular && (
-                          <span className="rounded-full bg-[#c4512a] px-2 py-0.5 text-[10px] font-semibold text-white">Popular</span>
-                        )}
+                    {/* Tap to select AND reveal this plan's features (accordion). */}
+                    <button type="button" onClick={() => setPlan(p.name)}
+                      className="flex w-full items-center justify-between p-3.5 text-left">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-[#edeae3]">{p.label}</span>
+                          {"popular" in p && p.popular && (
+                            <span className="rounded-full bg-[#c4512a] px-2 py-0.5 text-[10px] font-semibold text-white">Popular</span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 text-xs text-[#edeae3]/50">{p.blurb}</div>
                       </div>
-                      <div className="mt-0.5 text-xs text-[#edeae3]/50">{p.blurb}</div>
-                    </div>
-                    <span className="shrink-0 text-sm font-semibold text-[#a8c5b5]">{p.price}</span>
-                  </button>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="text-sm font-semibold text-[#a8c5b5]">{p.price}</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+                          className="h-4 w-4 text-[#edeae3]/40 transition-transform"
+                          style={{ transform: active ? "rotate(180deg)" : "none" }}>
+                          <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                    </button>
+                    {active && (
+                      <ul className="flex flex-col gap-1.5 border-t border-white/10 px-3.5 py-3">
+                        {p.features.map((f) => (
+                          <li key={f} className="flex items-start gap-2 text-xs text-[#edeae3]/75">
+                            <span className="mt-px text-[#6b8f7e]">✓</span>{f}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 );
               })}
               {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
