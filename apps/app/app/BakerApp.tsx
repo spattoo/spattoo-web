@@ -448,7 +448,13 @@ function SetupBaker({
   const [plan, setPlan] = useState<string>("spark");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [address, setAddress] = useState("");
+  const [line1, setLine1] = useState("");
+  const [line2, setLine2] = useState("");
+  const [street, setStreet] = useState("");
+  const [city, setCity] = useState("");
+  const [stateRegion, setStateRegion] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [country, setCountry] = useState("India");
   const [instagram, setInstagram] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#6b8f7e");
   const [accentColor, setAccentColor] = useState("#c4852a");
@@ -514,7 +520,11 @@ function SetupBaker({
     setBusy(true);
     try {
       const payload: Record<string, string> = { primary_color: primaryColor, accent_color: accentColor };
-      if (address.trim()) payload.address = address.trim();
+      const addr: Record<string, string> = {
+        address_line1: line1, address_line2: line2, street, city,
+        state: stateRegion, postal_code: postalCode, country,
+      };
+      for (const [k, v] of Object.entries(addr)) if (v.trim()) payload[k] = v.trim();
       if (instagram.trim()) payload.instagram_handle = instagram.trim().replace(/^@/, "");
       await api.updateBakerProfile(payload);
       onDone();
@@ -623,11 +633,27 @@ function SetupBaker({
               A few touches for your public page — all optional, and editable later in settings.
             </p>
             <div className="mt-6 flex flex-col gap-4">
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Address</span>
-                <input className={AUTH_FIELD} placeholder="Area, city" value={address}
-                  onChange={(e) => setAddress(e.target.value)} />
-              </label>
+              <div className="flex flex-col gap-2">
+                <span className="block text-sm font-medium text-[#edeae3]/70">Address</span>
+                <input className={AUTH_FIELD} placeholder="Address line 1" value={line1}
+                  onChange={(e) => setLine1(e.target.value)} />
+                <input className={AUTH_FIELD} placeholder="Address line 2" value={line2}
+                  onChange={(e) => setLine2(e.target.value)} />
+                <input className={AUTH_FIELD} placeholder="Street" value={street}
+                  onChange={(e) => setStreet(e.target.value)} />
+                <div className="flex gap-2">
+                  <input className={AUTH_FIELD} placeholder="City" value={city}
+                    onChange={(e) => setCity(e.target.value)} />
+                  <input className={AUTH_FIELD} placeholder="State" value={stateRegion}
+                    onChange={(e) => setStateRegion(e.target.value)} />
+                </div>
+                <div className="flex gap-2">
+                  <input className={AUTH_FIELD} placeholder="Postal code" value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value)} />
+                  <input className={AUTH_FIELD} placeholder="Country" value={country}
+                    onChange={(e) => setCountry(e.target.value)} />
+                </div>
+              </div>
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Instagram</span>
                 <input className={AUTH_FIELD} placeholder="@yourbakery" value={instagram}
