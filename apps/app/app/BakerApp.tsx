@@ -281,7 +281,15 @@ function BakerSignup({
     if (password !== confirm) { setErr("Passwords do not match."); return; }
     setBusy(true);
     setErr(null);
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Send the verification link back to THIS origin (app.spattoo.dev in dev,
+    // app.spattoo.com in prod, localhost locally) so the confirmed user lands on
+    // the app and flows straight into brand setup. The origin must be allow-listed
+    // in Supabase Auth → URL Configuration → Redirect URLs.
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: window.location.origin },
+    });
     if (error) { setErr(error.message); setBusy(false); return; }
     // If email confirmation is ON, there's no session yet → tell them to verify.
     // If OFF, the auth state change logs them in and BakerApp routes to setup.
@@ -295,8 +303,8 @@ function BakerSignup({
         <div className={AUTH_CARD}>
           <h1 className="text-2xl font-bold text-[#edeae3]">Check your email</h1>
           <p className="mt-2 text-sm leading-relaxed text-[#edeae3]/55">
-            We sent a verification link to <b className="text-[#edeae3]/80">{email}</b>. Confirm it,
-            then sign in to finish setting up your brand.
+            We sent a verification link to <b className="text-[#edeae3]/80">{email}</b>. Confirm it
+            to finish setting up your brand. (Opened it on another device? Just sign in here.)
           </p>
           <button type="button" onClick={onBack} className={`${AUTH_BTN} mt-5 w-full`}>Back to sign in</button>
         </div>
