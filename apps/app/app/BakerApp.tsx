@@ -449,7 +449,10 @@ function SetupBaker({
   const [err, setErr] = useState<string | null>(null);
 
   const [name, setName] = useState("");
-  const [plan, setPlan] = useState<string>("spark");
+  // Default-select the "Popular" plan (expanded on arrival) to anchor the choice.
+  const [plan, setPlan] = useState<string>(
+    () => WIZARD_PLANS.find((p) => "popular" in p && p.popular)?.name ?? WIZARD_PLANS[0].name,
+  );
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [line1, setLine1] = useState("");
@@ -682,17 +685,20 @@ function SetupBaker({
                 <input className={AUTH_FIELD} placeholder="@yourbakery" value={instagram}
                   onChange={(e) => setInstagram(e.target.value)} />
               </label>
-              <div className="flex gap-3">
-                <label className="flex flex-1 items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5">
-                  <span className="text-sm text-[#edeae3]/70">Primary</span>
-                  <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="h-7 w-10 cursor-pointer rounded bg-transparent" />
-                </label>
-                <label className="flex flex-1 items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5">
-                  <span className="text-sm text-[#edeae3]/70">Accent</span>
-                  <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)}
-                    className="h-7 w-10 cursor-pointer rounded bg-transparent" />
-                </label>
+              <div>
+                <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Brand colors</span>
+                <div className="flex gap-3">
+                  <label className="flex flex-1 items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5">
+                    <span className="text-sm text-[#edeae3]/70">Primary</span>
+                    <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)}
+                      className="h-7 w-10 cursor-pointer rounded bg-transparent" />
+                  </label>
+                  <label className="flex flex-1 items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5">
+                    <span className="text-sm text-[#edeae3]/70">Accent</span>
+                    <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)}
+                      className="h-7 w-10 cursor-pointer rounded bg-transparent" />
+                  </label>
+                </div>
               </div>
               {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
               <button type="button" onClick={() => finish(false)} disabled={busy} className={`${AUTH_BTN} mt-1`}>
