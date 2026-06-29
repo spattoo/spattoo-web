@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import WaitlistModal from "./WaitlistModal";
+import StartCta from "./StartCta";
 
 export default function PricingCTA() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -17,13 +18,13 @@ export default function PricingCTA() {
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <button
-            onClick={() => setModalOpen(true)}
+          <StartCta
+            onWaitlist={() => setModalOpen(true)}
             className="px-8 py-3.5 rounded-full font-semibold text-sm text-white transition-opacity hover:opacity-90 cursor-pointer"
             style={{ backgroundColor: "#3d5247" }}
           >
             Get Started Free
-          </button>
+          </StartCta>
           <button
             onClick={() => setModalOpen(true)}
             className="px-8 py-3.5 rounded-full font-semibold text-sm transition-opacity hover:opacity-90 cursor-pointer text-white"

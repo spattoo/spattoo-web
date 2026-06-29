@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import WaitlistModal from "./WaitlistModal";
+import StartCta from "./StartCta";
 
 const tiers = [
   {
@@ -184,8 +185,8 @@ export default function Pricing() {
               </div>
 
               {/* CTA */}
-              <button
-                onClick={() => setWaitlistOpen(true)}
+              <StartCta
+                onWaitlist={() => setWaitlistOpen(true)}
                 className="block w-full text-center py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer"
                 style={
                   tier.ctaVariant === "filled"
@@ -198,7 +199,7 @@ export default function Pricing() {
                 }
               >
                 {tier.cta}
-              </button>
+              </StartCta>
 
               {/* Divider */}
               <div className="h-px bg-white/5" />

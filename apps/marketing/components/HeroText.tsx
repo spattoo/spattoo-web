@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import WaitlistModal from "./WaitlistModal";
+import StartCta from "./StartCta";
 
 const slides = [
   {
@@ -102,9 +103,9 @@ export default function HeroText() {
           <a href="#how-it-works" className="px-6 py-2.5 rounded-full bg-[#3d5247] text-[#edeae3] font-semibold text-sm hover:bg-[#4a6357] transition-colors text-center">
             See How It Works
           </a>
-          <button onClick={() => setWaitlistOpen(true)} className="px-6 py-2.5 rounded-full bg-[#3d5247] text-[#edeae3] font-semibold text-sm hover:bg-[#4a6357] transition-colors text-center cursor-pointer">
+          <StartCta onWaitlist={() => setWaitlistOpen(true)} className="px-6 py-2.5 rounded-full bg-[#3d5247] text-[#edeae3] font-semibold text-sm hover:bg-[#4a6357] transition-colors text-center cursor-pointer">
             Get Started Free
-          </button>
+          </StartCta>
         </div>
       </div>
 
@@ -157,9 +158,9 @@ export default function HeroText() {
           <a href="#how-it-works" className="flex-1 py-3.5 rounded-full bg-[#3d5247] text-[#edeae3] font-semibold text-sm text-center">
             See How It Works
           </a>
-          <button onClick={() => setWaitlistOpen(true)} className="flex-1 py-3.5 rounded-full bg-[#3d5247] text-[#edeae3] font-semibold text-sm text-center cursor-pointer">
+          <StartCta onWaitlist={() => setWaitlistOpen(true)} className="flex-1 py-3.5 rounded-full bg-[#3d5247] text-[#edeae3] font-semibold text-sm text-center cursor-pointer">
             Get Started Free
-          </button>
+          </StartCta>
         </div>
       </div>
       {waitlistOpen && <WaitlistModal onClose={() => setWaitlistOpen(false)} />}

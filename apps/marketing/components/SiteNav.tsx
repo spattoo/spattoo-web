@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import MobileNav from "./MobileNav";
 import WaitlistModal from "./WaitlistModal";
-import { APP_URL, SHOW_SIGNIN } from "../lib/domain";
+import { APP_URL, SHOW_SIGNIN, SIGNUP_URL } from "../lib/domain";
 
 export default function SiteNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -51,6 +51,14 @@ export default function SiteNav() {
             className="text-sm font-medium text-[#edeae3]/70 hover:text-[#edeae3] transition-colors"
           >
             Sign in
+          </a>
+        )}
+        {SHOW_SIGNIN && (
+          <a
+            href={SIGNUP_URL}
+            className="inline-flex px-6 py-2.5 rounded-full bg-[#3d5247] text-[#edeae3] text-sm font-medium hover:bg-[#4a6357] transition-all"
+          >
+            Get started
           </a>
         )}
         <button
