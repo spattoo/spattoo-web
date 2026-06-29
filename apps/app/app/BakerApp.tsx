@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase } from "../lib/supabase";
-import { BASE_DOMAIN, MARKETING_URL } from "../lib/domain";
+import { MARKETING_URL } from "../lib/domain";
 import { makeBakerApiClient } from "../lib/bakerApi";
 import { setTelemetryContext } from "../lib/telemetry";
 import { bridgeCoreTelemetryToSentry } from "../lib/coreTelemetryBridge";
@@ -269,6 +269,9 @@ function EyeOff() {
 function BakerSignup({
   supabase, onBack,
 }: { supabase: ReturnType<typeof getSupabase>; onBack: () => void }) {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -280,6 +283,8 @@ function BakerSignup({
 
   // Mismatch surfaces only once they've started typing the confirmation.
   const mismatch = confirm.length > 0 && password !== confirm;
+  const canSubmit = !busy && firstName.trim() && lastName.trim() && phone.trim()
+    && email && password.length >= 6 && password === confirm;
 
   async function signUp(e: React.FormEvent) {
     e.preventDefault();
@@ -296,7 +301,17 @@ function BakerSignup({
       // role:"baker" in user_metadata lets the shared "Confirm sign up" email
       // template branch: bakers get a verification LINK, customers (storefront
       // OTP login) keep their sign-in CODE. Both flows share one Supabase project.
-      options: { emailRedirectTo: window.location.origin, data: { role: "baker" } },
+      // first_name/last_name/phone are stored here so they survive the email-
+      // verification gap and become the primary baker_appusers row at brand setup.
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: {
+          role: "baker",
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          phone: phone.trim(),
+        },
+      },
     });
     if (error) { setErr(error.message); setBusy(false); return; }
     // If email confirmation is ON, there's no session yet → tell them to verify.
@@ -327,6 +342,25 @@ function BakerSignup({
         <p className="mt-1 text-sm text-[#edeae3]/45">Start your free Spark trial.</p>
 
         <div className="mt-6 flex flex-col gap-4">
+          <div className="flex gap-3">
+            <label className="block flex-1">
+              <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">First name</span>
+              <input autoComplete="given-name" placeholder="Jane" value={firstName}
+                onChange={(e) => setFirstName(e.target.value)} className={AUTH_FIELD} />
+            </label>
+            <label className="block flex-1">
+              <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Last name</span>
+              <input autoComplete="family-name" placeholder="Doe" value={lastName}
+                onChange={(e) => setLastName(e.target.value)} className={AUTH_FIELD} />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Phone</span>
+            <input type="tel" autoComplete="tel" placeholder="+91 98765 43210" value={phone}
+              onChange={(e) => setPhone(e.target.value)} className={AUTH_FIELD} />
+          </label>
+
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Email</span>
             <input type="email" autoComplete="email" placeholder="you@bakery.com" value={email}
@@ -363,7 +397,7 @@ function BakerSignup({
 
           {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
 
-          <button type="submit" disabled={busy || !email || password.length < 6 || password !== confirm}
+          <button type="submit" disabled={!canSubmit}
             className={`${AUTH_BTN} mt-1`}>
             {busy ? "Creating…" : "Create account"}
           </button>
@@ -382,6 +416,21 @@ function BakerSignup({
 // Post-signup shop setup: a logged-in user with no baker yet provides their name +
 // business + storefront address; we provision them on the free Spark tier via
 // POST /api/bakers/self. No payment involved.
+// Onboarding plans for the wizard. `storefront` gates the logo/storefront steps.
+// (Mirrors the marketing pricing for now; should later be driven by the plan +
+// entitlements API so it can't drift.)
+const WIZARD_PLANS = [
+  { name: "spark", label: "Spark", price: "Free",      storefront: false, blurb: "Design canvas · 10 orders" },
+  { name: "flame", label: "Flame", price: "₹999/mo",   storefront: true,  blurb: "Public storefront · unlimited orders" },
+  { name: "blaze", label: "Blaze", price: "₹2,499/mo", storefront: true,  blurb: "Custom branding & templates", popular: true },
+  { name: "forge", label: "Forge", price: "₹4,999/mo", storefront: true,  blurb: "Everything · unlimited team" },
+] as const;
+
+// Post-signup brand wizard. Name + phone were already collected at signup (in auth
+// metadata); here the baker names their bakery (step 1 creates the baker), picks a
+// plan (step 2, no charge), and — ONLY if the plan includes a storefront — adds a
+// logo (step 3) then storefront details (step 4). Logo/storefront steps are
+// skippable. The slug is generated server-side, so there's no slug UI.
 function SetupBaker({
   api, email, onDone, onSignOut,
 }: {
@@ -390,103 +439,229 @@ function SetupBaker({
   onDone: () => void;
   onSignOut: () => void;
 }) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugEdited, setSlugEdited] = useState(false);
-  const [slugState, setSlugState] = useState<{ checking: boolean; available?: boolean; reason?: string }>({ checking: false });
+  type Step = "basics" | "plan" | "logo" | "storefront";
+  const [step, setStep] = useState<Step>("basics");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const derive = (s: string) =>
-    s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+  const [name, setName] = useState("");
+  const [plan, setPlan] = useState<string>("spark");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [address, setAddress] = useState("");
+  const [instagram, setInstagram] = useState("");
+  const [primaryColor, setPrimaryColor] = useState("#6b8f7e");
+  const [accentColor, setAccentColor] = useState("#c4852a");
 
-  // Auto-derive slug from business name until the baker edits it themselves.
-  useEffect(() => {
-    if (!slugEdited) setSlug(derive(name));
-  }, [name, slugEdited]);
+  const planMeta = WIZARD_PLANS.find((p) => p.name === plan) ?? WIZARD_PLANS[0];
+  const steps: Step[] = planMeta.storefront ? ["basics", "plan", "logo", "storefront"] : ["basics", "plan"];
+  const stepIndex = steps.indexOf(step);
 
-  // Debounced availability check.
-  useEffect(() => {
-    const s = slug.trim();
-    if (!s) { setSlugState({ checking: false }); return; }
-    setSlugState({ checking: true });
-    const t = setTimeout(() => {
-      api.checkSlug(s)
-        .then((r: { available: boolean; reason?: string }) => setSlugState({ checking: false, available: r.available, reason: r.reason }))
-        .catch(() => setSlugState({ checking: false }));
-    }, 350);
-    return () => clearTimeout(t);
-  }, [slug, api]);
+  const fail = (e: unknown) => {
+    setErr((e as { message?: string })?.message ?? "Something went wrong");
+    setBusy(false);
+  };
 
-  async function submit(e: React.FormEvent) {
+  // Step 1 — create the baker (server generates the slug + writes the primary user).
+  async function createBaker(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setErr(null);
+    if (!name.trim()) return;
+    setBusy(true); setErr(null);
     try {
-      await api.createBakerSelf({ name: name.trim(), firstName: firstName.trim(), lastName: lastName.trim(), slug: slug.trim() });
-      onDone();
-    } catch (e2) {
-      setErr((e2 as { message?: string })?.message ?? "Something went wrong");
+      await api.createBakerSelf({ name: name.trim() });
       setBusy(false);
-    }
+      setStep("plan");
+    } catch (e2) { fail(e2); }
   }
 
-  const canSubmit =
-    firstName.trim() && lastName.trim() && name.trim() && slug.trim() &&
-    slugState.available === true && !busy;
+  // Step 2 — set the plan (no charge); branch into the storefront steps or finish.
+  async function choosePlan() {
+    setBusy(true); setErr(null);
+    try {
+      if (plan !== "spark") await api.selectPlan(plan); // Spark is the creation default
+      setBusy(false);
+      if (planMeta.storefront) setStep("logo");
+      else onDone();
+    } catch (e2) { fail(e2); }
+  }
 
-  const slugStatus = !slug.trim() ? ""
-    : slugState.checking ? "Checking…"
-    : slugState.available === true ? "✓ Available"
-    : slugState.reason === "taken" ? "Already taken"
-    : slugState.reason === "reserved" ? "Reserved — pick another"
-    : slugState.available === false ? "Not a valid address" : "";
-  const slugColor = slugState.available === true ? "#8fd19e"
-    : slugState.available === false ? "#ef9a9a" : "rgba(237,234,227,0.4)";
+  function pickLogo(f: File | null) {
+    setLogoFile(f);
+    setLogoPreview(f ? URL.createObjectURL(f) : null);
+  }
+
+  // Step 3 — optional logo upload (R2 → logo_url), then storefront details.
+  async function saveLogo(skip: boolean) {
+    setErr(null);
+    if (skip || !logoFile) { setStep("storefront"); return; }
+    setBusy(true);
+    try {
+      const ext = (logoFile.name.split(".").pop() || "png").toLowerCase();
+      const contentType = logoFile.type || "image/png";
+      const { url, key } = await api.getSignedUploadUrl("logos", `${crypto.randomUUID()}.${ext}`, contentType);
+      const put = await fetch(url, { method: "PUT", body: logoFile, headers: { "Content-Type": contentType } });
+      if (!put.ok) throw new Error("Logo upload failed — please try again.");
+      await api.updateBakerProfile({ logo_url: key });
+      setBusy(false);
+      setStep("storefront");
+    } catch (e2) { fail(e2); }
+  }
+
+  // Step 4 — optional storefront details, then into the studio.
+  async function finish(skip: boolean) {
+    setErr(null);
+    if (skip) { onDone(); return; }
+    setBusy(true);
+    try {
+      const payload: Record<string, string> = { primary_color: primaryColor, accent_color: accentColor };
+      if (address.trim()) payload.address = address.trim();
+      if (instagram.trim()) payload.instagram_handle = instagram.trim().replace(/^@/, "");
+      await api.updateBakerProfile(payload);
+      onDone();
+    } catch (e2) { fail(e2); }
+  }
+
+  const skipLink = "text-sm font-semibold text-[#edeae3]/45 transition hover:text-[#edeae3]/80 disabled:opacity-40";
 
   return (
     <AuthShell>
-      <form onSubmit={submit} className={AUTH_CARD}>
-        <h1 className="text-2xl font-bold text-[#edeae3]">Set up your brand</h1>
-        <p className="mt-1 text-sm leading-relaxed text-[#edeae3]/45">
-          You&apos;re signed in as <b className="text-[#edeae3]/70">{email}</b>. A couple of details
-          and you&apos;re on the free Spark plan.
-        </p>
-
-        <div className="mt-6 flex flex-col gap-4">
-          <div className="flex gap-3">
-            <input className={AUTH_FIELD} placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-            <input className={AUTH_FIELD} placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-          </div>
-
-          <input className={AUTH_FIELD} placeholder="Bakery name" value={name} onChange={(e) => setName(e.target.value)} />
-
-          <div>
-            <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] pl-3.5 transition focus-within:border-[#6b8f7e] focus-within:bg-white/[0.06] focus-within:ring-2 focus-within:ring-[#6b8f7e]/25">
-              <span className="shrink-0 text-sm text-[#edeae3]/40">{BASE_DOMAIN}/</span>
-              <input
-                className="w-full bg-transparent py-3 pr-3.5 text-sm text-[#edeae3] outline-none placeholder:text-[#edeae3]/30"
-                placeholder="your-brand" value={slug}
-                onChange={(e) => { setSlugEdited(true); setSlug(derive(e.target.value)); }} />
-            </div>
-            <div className="mt-1.5 min-h-4 text-xs font-bold" style={{ color: slugColor }}>{slugStatus}</div>
-          </div>
-
-          {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
-
-          <button type="submit" disabled={!canSubmit} className={`${AUTH_BTN} mt-1`}>
-            {busy ? "Creating your brand…" : "Create my brand"}
-          </button>
+      <div className={AUTH_CARD}>
+        {/* Progress */}
+        <div className="mb-5 flex items-center gap-1.5">
+          {steps.map((s, i) => (
+            <span key={s} className="h-1 flex-1 rounded-full transition-all"
+              style={{ backgroundColor: i <= stepIndex ? "#6b8f7e" : "rgba(237,234,227,0.15)" }} />
+          ))}
         </div>
+
+        {step === "basics" && (
+          <form onSubmit={createBaker}>
+            <h1 className="text-2xl font-bold text-[#edeae3]">Name your bakery</h1>
+            <p className="mt-1 text-sm leading-relaxed text-[#edeae3]/45">
+              Signed in as <b className="text-[#edeae3]/70">{email}</b>. That&apos;s all we need to get you started.
+            </p>
+            <div className="mt-6 flex flex-col gap-4">
+              <input className={AUTH_FIELD} placeholder="Bakery name" value={name} autoFocus
+                onChange={(e) => setName(e.target.value)} />
+              {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
+              <button type="submit" disabled={busy || !name.trim()} className={`${AUTH_BTN} mt-1`}>
+                {busy ? "Creating…" : "Continue"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {step === "plan" && (
+          <div>
+            <h1 className="text-2xl font-bold text-[#edeae3]">Choose your plan</h1>
+            <p className="mt-1 text-sm leading-relaxed text-[#edeae3]/45">
+              Start free on Spark — upgrade anytime. Paid plans unlock your public storefront.
+            </p>
+            <div className="mt-6 flex flex-col gap-2.5">
+              {WIZARD_PLANS.map((p) => {
+                const active = plan === p.name;
+                return (
+                  <button key={p.name} type="button" onClick={() => setPlan(p.name)}
+                    className="flex items-center justify-between rounded-xl border p-3.5 text-left transition"
+                    style={{
+                      borderColor: active ? "#6b8f7e" : "rgba(255,255,255,0.1)",
+                      backgroundColor: active ? "rgba(107,143,126,0.12)" : "rgba(255,255,255,0.03)",
+                    }}>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-[#edeae3]">{p.label}</span>
+                        {"popular" in p && p.popular && (
+                          <span className="rounded-full bg-[#c4512a] px-2 py-0.5 text-[10px] font-semibold text-white">Popular</span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 text-xs text-[#edeae3]/50">{p.blurb}</div>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold text-[#a8c5b5]">{p.price}</span>
+                  </button>
+                );
+              })}
+              {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
+              <button type="button" onClick={choosePlan} disabled={busy} className={`${AUTH_BTN} mt-1`}>
+                {busy ? "Saving…" : planMeta.storefront ? "Continue" : "Finish & enter studio"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === "logo" && (
+          <div>
+            <h1 className="text-2xl font-bold text-[#edeae3]">Add your logo</h1>
+            <p className="mt-1 text-sm leading-relaxed text-[#edeae3]/45">
+              Shown across your storefront. You can skip and add it later in settings.
+            </p>
+            <div className="mt-6 flex flex-col gap-4">
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.03] py-7 text-center transition hover:border-[#6b8f7e]/60">
+                {logoPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoPreview} alt="Logo preview" className="h-20 w-20 rounded-lg object-contain" />
+                ) : (
+                  <span className="text-sm text-[#edeae3]/50">Click to upload (PNG, JPG, SVG)</span>
+                )}
+                <input type="file" accept="image/*" className="hidden"
+                  onChange={(e) => pickLogo(e.target.files?.[0] ?? null)} />
+              </label>
+              {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
+              <button type="button" onClick={() => saveLogo(false)} disabled={busy} className={`${AUTH_BTN} mt-1`}>
+                {busy ? "Uploading…" : logoFile ? "Upload & continue" : "Continue"}
+              </button>
+              <button type="button" onClick={() => saveLogo(true)} disabled={busy} className={skipLink}>
+                Skip for now
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === "storefront" && (
+          <div>
+            <h1 className="text-2xl font-bold text-[#edeae3]">Storefront details</h1>
+            <p className="mt-1 text-sm leading-relaxed text-[#edeae3]/45">
+              A few touches for your public page — all optional, and editable later in settings.
+            </p>
+            <div className="mt-6 flex flex-col gap-4">
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Address</span>
+                <input className={AUTH_FIELD} placeholder="Area, city" value={address}
+                  onChange={(e) => setAddress(e.target.value)} />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Instagram</span>
+                <input className={AUTH_FIELD} placeholder="@yourbakery" value={instagram}
+                  onChange={(e) => setInstagram(e.target.value)} />
+              </label>
+              <div className="flex gap-3">
+                <label className="flex flex-1 items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5">
+                  <span className="text-sm text-[#edeae3]/70">Primary</span>
+                  <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)}
+                    className="h-7 w-10 cursor-pointer rounded bg-transparent" />
+                </label>
+                <label className="flex flex-1 items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5">
+                  <span className="text-sm text-[#edeae3]/70">Accent</span>
+                  <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)}
+                    className="h-7 w-10 cursor-pointer rounded bg-transparent" />
+                </label>
+              </div>
+              {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
+              <button type="button" onClick={() => finish(false)} disabled={busy} className={`${AUTH_BTN} mt-1`}>
+                {busy ? "Saving…" : "Finish & enter studio"}
+              </button>
+              <button type="button" onClick={() => finish(true)} disabled={busy} className={skipLink}>
+                Skip for now
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="mt-6 text-sm">
           <button type="button" onClick={onSignOut} className="font-semibold text-[#a8c5b5] hover:underline">
             Sign out
           </button>
         </div>
-      </form>
+      </div>
     </AuthShell>
   );
 }

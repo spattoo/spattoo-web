@@ -163,6 +163,9 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
       publicGet(`/api/bakers/slug-available?slug=${encodeURIComponent(slug)}`),
     createBakerSelf: (payload: unknown) =>
       authFetch("/api/bakers/self", { method: "POST", body: JSON.stringify(payload) }),
+    // Onboarding wizard plan step — sets the plan WITHOUT charge (dev/no-payment).
+    selectPlan: (plan: string) =>
+      authFetch("/api/baker/plan/select", { method: "POST", body: JSON.stringify({ plan }) }),
 
     // ── Account ───────────────────────────────────────────────────────────────
     signOut: () => supabase.auth.signOut(),
