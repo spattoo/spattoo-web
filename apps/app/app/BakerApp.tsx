@@ -520,10 +520,12 @@ function SetupBaker({
     } catch (e2) { fail(e2); }
   }
 
-  // Step 4 — optional storefront details, then into the studio.
-  async function finish(skip: boolean) {
+  // Address is REQUIRED here — billing/invoices need it (line 2 + street optional).
+  const addressValid = !!(line1.trim() && city.trim() && stateRegion.trim() && postalCode.trim() && country.trim());
+
+  // Step 4 — storefront step. Address required; instagram + colors optional.
+  async function finish() {
     setErr(null);
-    if (skip) { onDone(); return; }
     setBusy(true);
     try {
       const payload: Record<string, string> = { primary_color: primaryColor, accent_color: accentColor };
@@ -656,11 +658,13 @@ function SetupBaker({
           <div>
             <h1 className="text-2xl font-bold text-[#edeae3]">Storefront details</h1>
             <p className="mt-1 text-sm leading-relaxed text-[#edeae3]/45">
-              A few touches for your public page — all optional, and editable later in settings.
+              Your business address is required for billing &amp; invoices; the rest is optional and editable later.
             </p>
             <div className="mt-6 flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <span className="block text-sm font-medium text-[#edeae3]/70">Address</span>
+                <span className="block text-sm font-medium text-[#edeae3]/70">
+                  Address <span className="text-[#ef9a9a]">*</span>
+                </span>
                 <input className={AUTH_FIELD} placeholder="Address line 1" value={line1}
                   onChange={(e) => setLine1(e.target.value)} />
                 <input className={AUTH_FIELD} placeholder="Address line 2" value={line2}
@@ -701,11 +705,8 @@ function SetupBaker({
                 </div>
               </div>
               {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
-              <button type="button" onClick={() => finish(false)} disabled={busy} className={`${AUTH_BTN} mt-1`}>
+              <button type="button" onClick={finish} disabled={busy || !addressValid} className={`${AUTH_BTN} mt-1`}>
                 {busy ? "Saving…" : "Finish & enter studio"}
-              </button>
-              <button type="button" onClick={() => finish(true)} disabled={busy} className={skipLink}>
-                Skip for now
               </button>
             </div>
           </div>
