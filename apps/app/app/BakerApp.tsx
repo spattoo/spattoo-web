@@ -443,7 +443,7 @@ function SetupBaker({
   onDone: () => void;
   onSignOut: () => void;
 }) {
-  type Step = "basics" | "plan" | "logo" | "storefront";
+  type Step = "basics" | "address" | "plan" | "logo" | "extras";
   const [step, setStep] = useState<Step>("basics");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -467,7 +467,9 @@ function SetupBaker({
   const [accentColor, setAccentColor] = useState("#c4852a");
 
   const planMeta = WIZARD_PLANS.find((p) => p.name === plan) ?? WIZARD_PLANS[0];
-  const steps: Step[] = planMeta.storefront ? ["basics", "plan", "logo", "storefront"] : ["basics", "plan"];
+  const steps: Step[] = planMeta.storefront
+    ? ["basics", "address", "plan", "logo", "extras"]
+    : ["basics", "address", "plan"];
   const stepIndex = steps.indexOf(step);
 
   const fail = (e: unknown) => {
@@ -483,7 +485,7 @@ function SetupBaker({
     try {
       await api.createBakerSelf({ name: name.trim() });
       setBusy(false);
-      setStep("plan");
+      setStep("address");
     } catch (e2) { fail(e2); }
   }
 
@@ -506,7 +508,7 @@ function SetupBaker({
   // Step 3 — optional logo upload (R2 → logo_url), then storefront details.
   async function saveLogo(skip: boolean) {
     setErr(null);
-    if (skip || !logoFile) { setStep("storefront"); return; }
+    if (skip || !logoFile) { setStep("extras"); return; }
     setBusy(true);
     try {
       const ext = (logoFile.name.split(".").pop() || "png").toLowerCase();
@@ -516,24 +518,38 @@ function SetupBaker({
       if (!put.ok) throw new Error("Logo upload failed — please try again.");
       await api.updateBakerProfile({ logo_url: key });
       setBusy(false);
-      setStep("storefront");
+      setStep("extras");
     } catch (e2) { fail(e2); }
   }
 
-  // Address is REQUIRED here — billing/invoices need it (line 2 + street optional).
+  // Address is REQUIRED and captured for EVERY baker (incl. Spark) — billing/invoices
+  // need it, and it drives area-wise subscription stats (line 2 + street optional).
   const addressValid = !!(line1.trim() && city.trim() && stateRegion.trim() && postalCode.trim() && country.trim());
 
-  // Step 4 — storefront step. Address required; instagram + colors optional.
-  async function finish() {
-    setErr(null);
-    setBusy(true);
+  // Step 2 — save the address (all bakers), then on to plan selection.
+  async function saveAddress() {
+    if (!addressValid) return;
+    setBusy(true); setErr(null);
     try {
-      const payload: Record<string, string> = { primary_color: primaryColor, accent_color: accentColor };
       const addr: Record<string, string> = {
         address_line1: line1, address_line2: line2, street, city,
         state: stateRegion, postal_code: postalCode, country,
       };
+      const payload: Record<string, string> = {};
       for (const [k, v] of Object.entries(addr)) if (v.trim()) payload[k] = v.trim();
+      await api.updateBakerProfile(payload);
+      setBusy(false);
+      setStep("plan");
+    } catch (e2) { fail(e2); }
+  }
+
+  // Final step (paid plans only) — optional storefront branding: instagram + colors.
+  async function finish(skip: boolean) {
+    setErr(null);
+    if (skip) { onDone(); return; }
+    setBusy(true);
+    try {
+      const payload: Record<string, string> = { primary_color: primaryColor, accent_color: accentColor };
       if (instagram.trim()) payload.instagram_handle = instagram.trim().replace(/^@/, "");
       await api.updateBakerProfile(payload);
       onDone();
@@ -568,6 +584,39 @@ function SetupBaker({
               </button>
             </div>
           </form>
+        )}
+
+        {step === "address" && (
+          <div>
+            <h1 className="text-2xl font-bold text-[#edeae3]">Your business address</h1>
+            <p className="mt-1 text-sm leading-relaxed text-[#edeae3]/45">
+              Required for billing &amp; invoices. Line 2 and street are optional.
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <input className={AUTH_FIELD} placeholder="Address line 1" value={line1} autoFocus
+                onChange={(e) => setLine1(e.target.value)} />
+              <input className={AUTH_FIELD} placeholder="Address line 2 (optional)" value={line2}
+                onChange={(e) => setLine2(e.target.value)} />
+              <input className={AUTH_FIELD} placeholder="Street (optional)" value={street}
+                onChange={(e) => setStreet(e.target.value)} />
+              <div className="flex gap-2">
+                <input className={AUTH_FIELD} placeholder="City" value={city}
+                  onChange={(e) => setCity(e.target.value)} />
+                <input className={AUTH_FIELD} placeholder="State" value={stateRegion}
+                  onChange={(e) => setStateRegion(e.target.value)} />
+              </div>
+              <div className="flex gap-2">
+                <input className={AUTH_FIELD} placeholder="Postal code" value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)} />
+                <input className={AUTH_FIELD} placeholder="Country" value={country}
+                  onChange={(e) => setCountry(e.target.value)} />
+              </div>
+              {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
+              <button type="button" onClick={saveAddress} disabled={busy || !addressValid} className={`${AUTH_BTN} mt-2`}>
+                {busy ? "Saving…" : "Continue →"}
+              </button>
+            </div>
+          </div>
         )}
 
         {step === "plan" && (
@@ -654,36 +703,13 @@ function SetupBaker({
           </div>
         )}
 
-        {step === "storefront" && (
+        {step === "extras" && (
           <div>
-            <h1 className="text-2xl font-bold text-[#edeae3]">Storefront details</h1>
+            <h1 className="text-2xl font-bold text-[#edeae3]">Storefront branding</h1>
             <p className="mt-1 text-sm leading-relaxed text-[#edeae3]/45">
-              Your business address is required for billing &amp; invoices; the rest is optional and editable later.
+              Optional finishing touches for your public page — editable later in settings.
             </p>
             <div className="mt-6 flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <span className="block text-sm font-medium text-[#edeae3]/70">
-                  Address <span className="text-[#ef9a9a]">*</span>
-                </span>
-                <input className={AUTH_FIELD} placeholder="Address line 1" value={line1}
-                  onChange={(e) => setLine1(e.target.value)} />
-                <input className={AUTH_FIELD} placeholder="Address line 2" value={line2}
-                  onChange={(e) => setLine2(e.target.value)} />
-                <input className={AUTH_FIELD} placeholder="Street" value={street}
-                  onChange={(e) => setStreet(e.target.value)} />
-                <div className="flex gap-2">
-                  <input className={AUTH_FIELD} placeholder="City" value={city}
-                    onChange={(e) => setCity(e.target.value)} />
-                  <input className={AUTH_FIELD} placeholder="State" value={stateRegion}
-                    onChange={(e) => setStateRegion(e.target.value)} />
-                </div>
-                <div className="flex gap-2">
-                  <input className={AUTH_FIELD} placeholder="Postal code" value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)} />
-                  <input className={AUTH_FIELD} placeholder="Country" value={country}
-                    onChange={(e) => setCountry(e.target.value)} />
-                </div>
-              </div>
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Instagram</span>
                 <input className={AUTH_FIELD} placeholder="@yourbakery" value={instagram}
@@ -705,8 +731,11 @@ function SetupBaker({
                 </div>
               </div>
               {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
-              <button type="button" onClick={finish} disabled={busy || !addressValid} className={`${AUTH_BTN} mt-1`}>
+              <button type="button" onClick={() => finish(false)} disabled={busy} className={`${AUTH_BTN} mt-1`}>
                 {busy ? "Saving…" : "Finish & enter studio"}
+              </button>
+              <button type="button" onClick={() => finish(true)} disabled={busy} className={skipLink}>
+                Skip for now
               </button>
             </div>
           </div>
