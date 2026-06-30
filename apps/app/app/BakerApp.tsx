@@ -416,19 +416,17 @@ function BakerSignup({
 // Post-signup shop setup: a logged-in user with no baker yet provides their name +
 // business + storefront address; we provision them on the free Spark tier via
 // POST /api/bakers/self. No payment involved.
-// Onboarding plans for the wizard. `storefront` gates the logo/storefront steps.
-// (Mirrors the marketing pricing for now; should later be driven by the plan +
-// entitlements API so it can't drift.)
-const WIZARD_PLANS = [
-  { name: "spark", label: "Spark", price: "Free", storefront: false, blurb: "Design canvas · 10 orders",
-    features: ["Design canvas", "10 total orders", "1 team member", "Help-docs support"] },
-  { name: "flame", label: "Flame", price: "₹999/mo", storefront: true, blurb: "Public storefront · unlimited orders",
-    features: ["Everything in Spark", "Public storefront (yourname.spattoo.com)", "Unlimited orders", "2 team members", "Email support"] },
-  { name: "blaze", label: "Blaze", price: "₹2,499/mo", storefront: true, blurb: "Custom branding & templates", popular: true,
-    features: ["Everything in Flame", "Custom templates", "Custom branding", "5 team members", "Priority chat support"] },
-  { name: "forge", label: "Forge", price: "₹4,999/mo", storefront: true, blurb: "Everything · unlimited team",
-    features: ["Everything in Blaze", "Unlimited team members", "Dedicated account manager"] },
-] as const;
+// Plan catalog row from GET /api/plans — the ONE source shared with the billing screen
+// (was hardcoded here AND in core's BillingPanel, which drifted). `has_storefront` gates
+// the logo/storefront steps.
+type PlanRow = {
+  name: string; display_name: string; tagline: string | null;
+  feature_bullets: string[]; is_popular: boolean; has_storefront: boolean;
+  price_monthly: number; price_yearly: number; sort_order: number;
+};
+// Prices are stored in paise (Razorpay subunit format) — show rupees.
+const planPriceLabel = (p: PlanRow) =>
+  Number(p.price_monthly) ? `₹${(Number(p.price_monthly) / 100).toLocaleString("en-IN")}/mo` : "Free";
 
 // Post-signup brand wizard. Name + phone were already collected at signup (in auth
 // metadata); here the baker names their bakery (step 1 creates the baker), picks a
@@ -449,10 +447,18 @@ function SetupBaker({
   const [err, setErr] = useState<string | null>(null);
 
   const [name, setName] = useState("");
-  // Default-select the "Popular" plan (expanded on arrival) to anchor the choice.
-  const [plan, setPlan] = useState<string>(
-    () => WIZARD_PLANS.find((p) => "popular" in p && p.popular)?.name ?? WIZARD_PLANS[0].name,
-  );
+  // Plan catalog from the DB; the popular plan is selected (and expanded) once loaded.
+  const [plans, setPlans] = useState<PlanRow[]>([]);
+  const [plan, setPlan] = useState<string>("");
+  useEffect(() => {
+    api.fetchPlans()
+      .then((d: PlanRow[]) => {
+        if (!Array.isArray(d) || !d.length) return;
+        setPlans(d);
+        setPlan((cur) => cur || d.find((p) => p.is_popular)?.name || d[0].name);
+      })
+      .catch(() => {});
+  }, [api]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [line1, setLine1] = useState("");
@@ -466,8 +472,11 @@ function SetupBaker({
   const [primaryColor, setPrimaryColor] = useState("#6b8f7e");
   const [accentColor, setAccentColor] = useState("#c4852a");
 
-  const planMeta = WIZARD_PLANS.find((p) => p.name === plan) ?? WIZARD_PLANS[0];
-  const steps: Step[] = planMeta.storefront
+  const planMeta = plans.find((p) => p.name === plan);
+  // Until the catalog loads (planMeta undefined) assume the storefront steps exist, so the
+  // progress indicator doesn't jump; choosePlan re-checks against the real plan.
+  const hasStorefront = planMeta?.has_storefront ?? true;
+  const steps: Step[] = hasStorefront
     ? ["basics", "address", "plan", "logo", "extras"]
     : ["basics", "address", "plan"];
   const stepIndex = steps.indexOf(step);
@@ -495,7 +504,7 @@ function SetupBaker({
     try {
       if (plan !== "spark") await api.selectPlan(plan); // Spark is the creation default
       setBusy(false);
-      if (planMeta.storefront) setStep("logo");
+      if (hasStorefront) setStep("logo");
       else onDone();
     } catch (e2) { fail(e2); }
   }
@@ -626,7 +635,7 @@ function SetupBaker({
               Start free on Spark — upgrade anytime. Paid plans unlock your public storefront.
             </p>
             <div className="mt-6 flex flex-col gap-2.5">
-              {WIZARD_PLANS.map((p) => {
+              {plans.map((p) => {
                 const active = plan === p.name;
                 return (
                   <div key={p.name} className="overflow-hidden rounded-xl border transition"
@@ -639,15 +648,15 @@ function SetupBaker({
                       className="flex w-full items-center justify-between p-3.5 text-left">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-[#edeae3]">{p.label}</span>
-                          {"popular" in p && p.popular && (
+                          <span className="text-sm font-bold text-[#edeae3]">{p.display_name}</span>
+                          {p.is_popular && (
                             <span className="rounded-full bg-[#c4512a] px-2 py-0.5 text-[10px] font-semibold text-white">Popular</span>
                           )}
                         </div>
-                        <div className="mt-0.5 text-xs text-[#edeae3]/50">{p.blurb}</div>
+                        {p.tagline && <div className="mt-0.5 text-xs text-[#edeae3]/50">{p.tagline}</div>}
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        <span className="text-sm font-semibold text-[#a8c5b5]">{p.price}</span>
+                        <span className="text-sm font-semibold text-[#a8c5b5]">{planPriceLabel(p)}</span>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
                           className="h-4 w-4 text-[#edeae3]/40 transition-transform"
                           style={{ transform: active ? "rotate(180deg)" : "none" }}>
@@ -655,9 +664,9 @@ function SetupBaker({
                         </svg>
                       </div>
                     </button>
-                    {active && (
+                    {active && p.feature_bullets.length > 0 && (
                       <ul className="flex flex-col gap-1.5 border-t border-white/10 px-3.5 py-3">
-                        {p.features.map((f) => (
+                        {p.feature_bullets.map((f) => (
                           <li key={f} className="flex items-start gap-2 text-xs text-[#edeae3]/75">
                             <span className="mt-px text-[#6b8f7e]">✓</span>{f}
                           </li>

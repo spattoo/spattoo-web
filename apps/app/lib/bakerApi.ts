@@ -165,6 +165,8 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
     // baker — drives the "X of N orders used / upgrade" surface.
     fetchEntitlements: () => authGet("/api/baker/entitlements"),
     fetchBillingPeriods: () => authGet("/api/billing/periods"),
+    // Public marketing plan catalog (one source for billing + onboarding).
+    fetchPlans: () => publicGet("/api/plans"),
     fetchSubscriptionHistory: () => authGet("/api/baker/subscription/history"),
     // Payment history → { payments, total }. Fetch just the latest on first look;
     // the full (recent) list only when the baker drills in.
