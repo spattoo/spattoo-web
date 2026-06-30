@@ -95,6 +95,13 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
       authFetch(`/api/orders/${id}/quote`, { method: "POST", body: JSON.stringify(body) }),
     fetchOrderAudit: (id: string) => authGet(`/api/orders/${id}/audit`),
 
+    // ── Finished-cake photos (optional, ≤3; attached when marking ready) ────────
+    fetchOrderPhotos: (id: string) => authGet(`/api/orders/${id}/photos`),
+    saveOrderPhotos: (id: string, keys: string[]) =>
+      authFetch(`/api/orders/${id}/photos`, { method: "POST", body: JSON.stringify({ keys }) }),
+    deleteOrderPhoto: (id: string, photoId: string) =>
+      authFetch(`/api/orders/${id}/photos/${photoId}`, { method: "DELETE" }),
+
     // ── Reference data ────────────────────────────────────────────────────────
     fetchOrderStatuses: () => publicGet("/api/order-statuses"),
     fetchFlavours: (bakerSlugArg?: string) =>
