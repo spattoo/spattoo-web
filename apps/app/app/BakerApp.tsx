@@ -416,17 +416,9 @@ function BakerSignup({
 // Post-signup shop setup: a logged-in user with no baker yet provides their name +
 // business + storefront address; we provision them on the free Spark tier via
 // POST /api/bakers/self. No payment involved.
-// Plan catalog row from GET /api/plans — the ONE source shared with the billing screen
-// (was hardcoded here AND in core's BillingPanel, which drifted). `has_storefront` gates
-// the logo/storefront steps.
-type PlanRow = {
-  name: string; display_name: string; tagline: string | null;
-  feature_bullets: string[]; is_popular: boolean; has_storefront: boolean;
-  price_monthly: number; price_yearly: number; sort_order: number;
-};
-// Prices are stored in paise (Razorpay subunit format) — show rupees.
-const planPriceLabel = (p: PlanRow) =>
-  Number(p.price_monthly) ? `₹${(Number(p.price_monthly) / 100).toLocaleString("en-IN")}/mo` : "Free";
+// Signup always starts a baker on Spark (free); paid upgrades happen later in Settings →
+// Billing (Razorpay Checkout). So onboarding shows NO plan picker — just a "start free,
+// decide later" message. The full plan catalog lives in the DB and is shown in Billing.
 
 // Post-signup brand wizard. Name + phone were already collected at signup (in auth
 // metadata); here the baker names their bakery (step 1 creates the baker), picks a
@@ -447,18 +439,6 @@ function SetupBaker({
   const [err, setErr] = useState<string | null>(null);
 
   const [name, setName] = useState("");
-  // Plan catalog from the DB; the popular plan is selected (and expanded) once loaded.
-  const [plans, setPlans] = useState<PlanRow[]>([]);
-  const [plan, setPlan] = useState<string>("");
-  useEffect(() => {
-    api.fetchPlans()
-      .then((d: PlanRow[]) => {
-        if (!Array.isArray(d) || !d.length) return;
-        setPlans(d);
-        setPlan((cur) => cur || d.find((p) => p.is_popular)?.name || d[0].name);
-      })
-      .catch(() => {});
-  }, [api]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [line1, setLine1] = useState("");
@@ -472,13 +452,8 @@ function SetupBaker({
   const [primaryColor, setPrimaryColor] = useState("#6b8f7e");
   const [accentColor, setAccentColor] = useState("#c4852a");
 
-  const planMeta = plans.find((p) => p.name === plan);
-  // Until the catalog loads (planMeta undefined) assume the storefront steps exist, so the
-  // progress indicator doesn't jump; choosePlan re-checks against the real plan.
-  const hasStorefront = planMeta?.has_storefront ?? true;
-  const steps: Step[] = hasStorefront
-    ? ["basics", "address", "plan", "logo", "extras"]
-    : ["basics", "address", "plan"];
+  // Everyone starts on Spark (free, no storefront) at signup → name → address → start.
+  const steps: Step[] = ["basics", "address", "plan"];
   const stepIndex = steps.indexOf(step);
 
   const fail = (e: unknown) => {
@@ -495,17 +470,6 @@ function SetupBaker({
       await api.createBakerSelf({ name: name.trim() });
       setBusy(false);
       setStep("address");
-    } catch (e2) { fail(e2); }
-  }
-
-  // Step 2 — set the plan (no charge); branch into the storefront steps or finish.
-  async function choosePlan() {
-    setBusy(true); setErr(null);
-    try {
-      if (plan !== "spark") await api.selectPlan(plan); // Spark is the creation default
-      setBusy(false);
-      if (hasStorefront) setStep("logo");
-      else onDone();
     } catch (e2) { fail(e2); }
   }
 
@@ -630,57 +594,16 @@ function SetupBaker({
 
         {step === "plan" && (
           <div>
-            <h1 className="text-2xl font-bold text-[#edeae3]">Choose your plan</h1>
-            <p className="mt-1 text-sm leading-relaxed text-[#edeae3]/45">
-              Start free on Spark — upgrade anytime. Paid plans unlock your public storefront.
+            <h1 className="text-2xl font-bold text-[#edeae3]">You&apos;re all set 🎉</h1>
+            <p className="mt-2 text-sm leading-relaxed text-[#edeae3]/55">
+              You&apos;re starting on <b className="text-[#edeae3]/80">Spark — free for a month</b>. Explore the
+              full 3D designer and start taking orders, then decide. When you want a public storefront and
+              unlimited orders, upgrade anytime from <b className="text-[#edeae3]/80">Billing</b>.
             </p>
-            <div className="mt-6 flex flex-col gap-2.5">
-              {plans.map((p) => {
-                const active = plan === p.name;
-                return (
-                  <div key={p.name} className="overflow-hidden rounded-xl border transition"
-                    style={{
-                      borderColor: active ? "#6b8f7e" : "rgba(255,255,255,0.1)",
-                      backgroundColor: active ? "rgba(107,143,126,0.12)" : "rgba(255,255,255,0.03)",
-                    }}>
-                    {/* Tap to select AND reveal this plan's features (accordion). */}
-                    <button type="button" onClick={() => setPlan(p.name)}
-                      className="flex w-full items-center justify-between p-3.5 text-left">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-[#edeae3]">{p.display_name}</span>
-                          {p.is_popular && (
-                            <span className="rounded-full bg-[#c4512a] px-2 py-0.5 text-[10px] font-semibold text-white">Popular</span>
-                          )}
-                        </div>
-                        {p.tagline && <div className="mt-0.5 text-xs text-[#edeae3]/50">{p.tagline}</div>}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span className="text-sm font-semibold text-[#a8c5b5]">{planPriceLabel(p)}</span>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-                          className="h-4 w-4 text-[#edeae3]/40 transition-transform"
-                          style={{ transform: active ? "rotate(180deg)" : "none" }}>
-                          <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
-                    </button>
-                    {active && p.feature_bullets.length > 0 && (
-                      <ul className="flex flex-col gap-1.5 border-t border-white/10 px-3.5 py-3">
-                        {p.feature_bullets.map((f) => (
-                          <li key={f} className="flex items-start gap-2 text-xs text-[#edeae3]/75">
-                            <span className="mt-px text-[#6b8f7e]">✓</span>{f}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })}
-              {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
-              <button type="button" onClick={choosePlan} disabled={busy} className={`${AUTH_BTN} mt-1`}>
-                {busy ? "Saving…" : "Continue →"}
-              </button>
-            </div>
+            {err && <p className="mt-3 text-sm font-semibold text-[#ef9a9a]">{err}</p>}
+            <button type="button" onClick={() => onDone()} disabled={busy} className={`${AUTH_BTN} mt-6`}>
+              Start designing →
+            </button>
           </div>
         )}
 
