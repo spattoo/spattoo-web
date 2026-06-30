@@ -423,7 +423,7 @@ const WIZARD_PLANS = [
   { name: "spark", label: "Spark", price: "Free", storefront: false, blurb: "Design canvas · 10 orders",
     features: ["Design canvas", "10 total orders", "1 team member", "Help-docs support"] },
   { name: "flame", label: "Flame", price: "₹999/mo", storefront: true, blurb: "Public storefront · unlimited orders",
-    features: ["Everything in Spark", "Public storefront (yourname.spattoo.com)", "Unlimited orders", "WhatsApp notifications", "2 team members", "Email support"] },
+    features: ["Everything in Spark", "Public storefront (yourname.spattoo.com)", "Unlimited orders", "2 team members", "Email support"] },
   { name: "blaze", label: "Blaze", price: "₹2,499/mo", storefront: true, blurb: "Custom branding & templates", popular: true,
     features: ["Everything in Flame", "Custom templates", "Custom branding", "5 team members", "Priority chat support"] },
   { name: "forge", label: "Forge", price: "₹4,999/mo", storefront: true, blurb: "Everything · unlimited team",
