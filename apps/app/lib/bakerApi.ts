@@ -166,6 +166,10 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
     fetchEntitlements: () => authGet("/api/baker/entitlements"),
     fetchBillingPeriods: () => authGet("/api/billing/periods"),
     fetchSubscriptionHistory: () => authGet("/api/baker/subscription/history"),
+    // Payment history → { payments, total }. Fetch just the latest on first look;
+    // the full (recent) list only when the baker drills in.
+    fetchLatestPayment: () => authGet("/api/billing/payments?limit=1"),
+    fetchPayments: () => authGet("/api/billing/payments?limit=24"),
     activateSparkPlan: () => authFetch("/api/billing/activate-spark", { method: "POST" }),
     createSubscription: (tier: string, billingPeriodId: string) =>
       authFetch("/api/billing/subscribe", {
