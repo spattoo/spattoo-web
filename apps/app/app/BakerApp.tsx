@@ -11,7 +11,11 @@ import { API_BASE } from "../lib/api";
 import { setTelemetryContext } from "../lib/telemetry";
 import { bridgeCoreTelemetryToSentry } from "../lib/coreTelemetryBridge";
 import ShareStoreModal from "../components/ShareStoreModal";
-import { isValidPhoneNumber, getCountries, getCountryCallingCode, type CountryCode } from "libphonenumber-js";
+// FULL ("max") metadata — the default "min" bundle wrongly validates junk like
+// "123123123" for IN (it only length-checks). "max" enforces real patterns. Types come
+// from the main package (metadata-independent).
+import { isValidPhoneNumber, getCountries, getCountryCallingCode } from "libphonenumber-js/max";
+import type { CountryCode } from "libphonenumber-js";
 
 // The full baker tool (designer + dashboard + OrdersPanel/Send quote + edit-in-3D).
 // Heavy WebGL — client-only. Same component as core's :5173 dev harness.
