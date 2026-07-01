@@ -7,6 +7,7 @@ import type { Session } from "@supabase/supabase-js";
 import { getSupabase } from "../lib/supabase";
 import { MARKETING_URL } from "../lib/domain";
 import { makeBakerApiClient } from "../lib/bakerApi";
+import { API_BASE } from "../lib/api";
 import { setTelemetryContext } from "../lib/telemetry";
 import { bridgeCoreTelemetryToSentry } from "../lib/coreTelemetryBridge";
 import ShareStoreModal from "../components/ShareStoreModal";
@@ -446,6 +447,22 @@ function BakerSignup({
     if (password !== confirm) { setErr("Passwords do not match."); return; }
     setBusy(true);
     setErr(null);
+
+    // Reject a phone that already belongs to a baker BEFORE creating the account +
+    // confirm email. UX guard only — /api/bakers/self + the DB unique index are the
+    // authoritative backstops. Network failure falls through to signUp (backstop covers it).
+    try {
+      const r = await fetch(`${API_BASE}/api/bakers/phone-available?phone=${encodeURIComponent(phone.trim())}&country=${phoneCountry}`);
+      const j = await r.json();
+      if (j && j.available === false) {
+        setErr(j.reason === "invalid"
+          ? "Enter a valid phone number."
+          : "This phone number is already registered. Please sign in instead.");
+        setBusy(false);
+        return;
+      }
+    } catch { /* ignore — the server-side check still rejects at brand setup */ }
+
     // Send the verification link back to THIS origin (app.spattoo.dev in dev,
     // app.spattoo.com in prod, localhost locally) so the confirmed user lands on
     // the app and flows straight into brand setup. The origin must be allow-listed
