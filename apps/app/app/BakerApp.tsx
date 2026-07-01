@@ -10,6 +10,7 @@ import { makeBakerApiClient } from "../lib/bakerApi";
 import { setTelemetryContext } from "../lib/telemetry";
 import { bridgeCoreTelemetryToSentry } from "../lib/coreTelemetryBridge";
 import ShareStoreModal from "../components/ShareStoreModal";
+import { isValidPhoneNumber, getCountries, getCountryCallingCode, type CountryCode } from "libphonenumber-js";
 
 // The full baker tool (designer + dashboard + OrdersPanel/Send quote + edit-in-3D).
 // Heavy WebGL — client-only. Same component as core's :5173 dev harness.
@@ -17,6 +18,20 @@ const CakeDesigner = dynamic(
   () => import("@spattoo/designer").then((m) => m.CakeDesigner),
   { ssr: false, loading: () => <Centered>Loading…</Centered> }
 );
+
+// Login-path (Baker vs Staff) coordination. The chosen path is stored before
+// signInWithPassword; BakerApp validates the server-resolved role against it and, on a
+// mismatch, signs out with a notice (strict: the Staff path rejects owner credentials
+// and vice-versa). sessionStorage because the login component unmounts on the auth-state
+// change, so we can't hold this in React state.
+const LS_LOGIN_MODE = "spattoo.loginMode";                       // 'baker' | 'staff'
+const LS_LOGIN_NOTICE = "spattoo.loginNotice";                   // message to show on login
+const LS_SUPPRESS_REDIRECT = "spattoo.suppressSignoutRedirect";  // skip marketing redirect once
+const ss = {
+  get: (k: string) => (typeof window !== "undefined" ? window.sessionStorage.getItem(k) : null),
+  set: (k: string, v: string) => { if (typeof window !== "undefined") window.sessionStorage.setItem(k, v); },
+  del: (k: string) => { if (typeof window !== "undefined") window.sessionStorage.removeItem(k); },
+};
 
 // Lightweight 3D grid backdrop for the sign-in — client-only (WebGL), lazy so it
 // never blocks the form. The dark page shows instantly; the grid paints in.
@@ -49,8 +64,12 @@ export default function BakerApp() {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       // On sign-out, send the baker to the marketing site (symmetric with the
-      // marketing "Sign in" CTA). Covers both sign-out paths + session loss.
-      if (event === "SIGNED_OUT") { window.location.href = MARKETING_URL; return; }
+      // marketing "Sign in" CTA). Covers both sign-out paths + session loss — EXCEPT a
+      // role-mismatch sign-out (wrong login path), which stays here to show the notice.
+      if (event === "SIGNED_OUT") {
+        if (ss.get(LS_SUPPRESS_REDIRECT)) { ss.del(LS_SUPPRESS_REDIRECT); setSession(null); return; }
+        window.location.href = MARKETING_URL; return;
+      }
       setSession(s);
     });
     return () => sub.subscription.unsubscribe();
@@ -66,18 +85,39 @@ export default function BakerApp() {
     if (!userId) { setBaker(null); setNeedsSetup(false); return; }
     bridgeCoreTelemetryToSentry("baker-app"); // route OrdersPanel's internal reportError to Sentry
     let alive = true;
+    // Strict login-path enforcement: if the user came in via a specific path (Baker or
+    // Staff), the server-resolved role MUST match. On mismatch, sign out with a notice
+    // rather than letting owner credentials in through the Staff door (or vice-versa).
+    const rejectPath = (notice: string, retryMode: "baker" | "staff") => {
+      ss.set(LS_LOGIN_NOTICE, notice);
+      ss.set(LS_LOGIN_MODE, retryMode);       // preselect the correct tab on retry
+      ss.set(LS_SUPPRESS_REDIRECT, "1");       // stay on the login screen, don't bounce to marketing
+      supabase.auth.signOut();
+    };
+
     api
       .fetchBakerProfile()
-      .then((p: { baker?: Record<string, unknown> }) => {
+      .then((p: { baker?: Record<string, unknown>; user?: { role?: string } }) => {
         if (!alive) return;
+        const mode = ss.get(LS_LOGIN_MODE);            // 'baker' | 'staff' | null
+        const isStaff = p?.user?.role === "staff";
+        if (mode) {
+          if (mode === "staff" && !isStaff)  return rejectPath("Those are owner credentials. Use the Baker sign-in.", "baker");
+          if (mode === "baker" && isStaff)   return rejectPath("Those are staff credentials. Use the Staff sign-in.", "staff");
+          ss.del(LS_LOGIN_MODE);                        // path matched — consume it
+        }
         setBaker((p?.baker ?? p) as typeof baker);
         setNeedsSetup(false);
       })
       .catch((e: { message?: string }) => {
         if (!alive) return;
-        // 404 "No baker account found" = this verified user hasn't created their shop
-        // yet → setup. Any other (transient) error: keep current, don't tear down.
-        if (/No baker account/i.test(e?.message ?? "")) setNeedsSetup(true);
+        // 404 "No baker account found" = no baker_appusers row for this user.
+        if (/No baker account/i.test(e?.message ?? "")) {
+          // Came in via the Staff path but there's no staff account → reject.
+          if (ss.get(LS_LOGIN_MODE) === "staff") return rejectPath("No staff account found for these credentials.", "staff");
+          ss.del(LS_LOGIN_MODE);
+          setNeedsSetup(true);                          // a new owner → onboarding
+        }
       });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,6 +125,12 @@ export default function BakerApp() {
 
   if (!ready) return <Centered>Loading…</Centered>;
   if (!session) return <AuthScreen supabase={supabase} />;
+  // Invited staff arrive with a session but no password (must_set_password in metadata,
+  // set at invite time). Gate the whole app behind setting one — clearing the flag lets
+  // them through (the USER_UPDATED event refreshes the session → this recomputes false).
+  if ((session.user.user_metadata as { must_set_password?: boolean } | undefined)?.must_set_password) {
+    return <SetStaffPassword supabase={supabase} email={session.user.email ?? ""} onSignOut={() => supabase.auth.signOut()} />;
+  }
   if (needsSetup) {
     return (
       <SetupBaker
@@ -182,32 +228,64 @@ const AUTH_CARD =
 const AUTH_BTN =
   "rounded-xl bg-[#6b8f7e] px-4 py-3 text-sm font-bold text-[#0e1a14] transition hover:bg-[#7ba18e] disabled:cursor-not-allowed disabled:opacity-40";
 
+// Full ISO-3166 country list for the phone-region select (international-ready).
+// Names via Intl.DisplayNames; sorted A→Z. Region drives how numbers written
+// without a "+<dialcode>" prefix are parsed (see api src/lib/phone.js).
+const REGION_NAMES = new Intl.DisplayNames(["en"], { type: "region" });
+const COUNTRY_OPTIONS = getCountries()
+  .map((code) => ({ code, calling: getCountryCallingCode(code), name: REGION_NAMES.of(code) || code }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
 function BakerLogin({
   supabase, showSignup, onSignup,
 }: { supabase: ReturnType<typeof getSupabase>; showSignup?: boolean; onSignup?: () => void }) {
+  // Two strict paths. The chosen path is stored before sign-in and validated against the
+  // server-resolved role (see BakerApp's profile effect): the Staff path rejects owner
+  // credentials and vice-versa. Mode + notice persist in sessionStorage across the retry.
+  const [mode, setMode] = useState<"baker" | "staff">(() => (ss.get(LS_LOGIN_MODE) === "staff" ? "staff" : "baker"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(() => ss.get(LS_LOGIN_NOTICE));
 
   const [showPw, setShowPw] = useState(false);
+
+  useEffect(() => { ss.del(LS_LOGIN_NOTICE); }, []);   // one-shot: shown once, then cleared
+
+  const isStaff = mode === "staff";
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setErr(null);
+    ss.set(LS_LOGIN_MODE, mode);                        // BakerApp's profile effect reads + validates this
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setErr(error.message);
-    setBusy(false);
+    if (error) { setErr(error.message); setBusy(false); }
+    // On success the component unmounts (auth state change) → BakerApp validates the path.
   }
 
   return (
     <AuthShell>
       <form onSubmit={signIn} className={AUTH_CARD}>
-        <h1 className="text-2xl font-bold text-[#edeae3]">Welcome back</h1>
-        <p className="mt-1 text-sm text-[#edeae3]/45">Sign in to continue.</p>
+        <h1 className="text-2xl font-bold text-[#edeae3]">{isStaff ? "Staff sign in" : "Welcome back"}</h1>
+        <p className="mt-1 text-sm text-[#edeae3]/45">
+          {isStaff ? "Sign in with the login your bakery gave you." : "Sign in to continue."}
+        </p>
 
-        <div className="mt-6 flex flex-col gap-4">
+        {/* Strict path selector */}
+        <div className="mt-5 grid grid-cols-2 gap-1 rounded-xl bg-white/[0.04] p-1 text-sm font-semibold">
+          {(["baker", "staff"] as const).map((m) => (
+            <button key={m} type="button" onClick={() => { setMode(m); setErr(null); }}
+              className={`rounded-lg px-3 py-2 transition ${mode === m ? "bg-[#6b8f7e] text-[#0e1a14]" : "text-[#edeae3]/55 hover:text-[#edeae3]"}`}>
+              {m === "baker" ? "Baker" : "Staff"}
+            </button>
+          ))}
+        </div>
+
+        {notice && <p className="mt-4 text-sm font-semibold text-[#e0b877]">{notice}</p>}
+
+        <div className="mt-4 flex flex-col gap-4">
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Email</span>
             <input type="email" autoComplete="email" placeholder="you@bakery.com" value={email}
@@ -234,13 +312,84 @@ function BakerLogin({
           </button>
         </div>
 
-        {showSignup && (
+        {showSignup && !isStaff && (
           <div className="mt-6 text-sm">
             <button type="button" onClick={onSignup} className="font-semibold text-[#a8c5b5] hover:underline">
               Create an account
             </button>
           </div>
         )}
+      </form>
+    </AuthShell>
+  );
+}
+
+// Invited staff set their password here on first entry (they have a session but no
+// password). Clears must_set_password in the same update, so the app gate opens.
+function SetStaffPassword({
+  supabase, email, onSignOut,
+}: { supabase: ReturnType<typeof getSupabase>; email: string; onSignOut: () => void }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [showPw, setShowPw] = useState(false);
+
+  const mismatch = confirm.length > 0 && password !== confirm;
+  const canSubmit = !busy && password.length >= 6 && password === confirm;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    // Set the password AND clear the gate flag atomically. USER_UPDATED → session
+    // refresh → the must_set_password gate in BakerApp recomputes to false → app opens.
+    const { error } = await supabase.auth.updateUser({ password, data: { must_set_password: false } });
+    if (error) { setErr(error.message); setBusy(false); }
+  }
+
+  return (
+    <AuthShell>
+      <form onSubmit={submit} className={AUTH_CARD}>
+        <h1 className="text-2xl font-bold text-[#edeae3]">Set your password</h1>
+        <p className="mt-1 text-sm leading-relaxed text-[#edeae3]/45">
+          Welcome! Choose a password for <b className="text-[#edeae3]/70">{email}</b> to finish activating your staff account.
+        </p>
+
+        <div className="mt-6 flex flex-col gap-4">
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">New password</span>
+            <div className="relative">
+              <input type={showPw ? "text" : "password"} autoComplete="new-password" placeholder="At least 6 characters"
+                value={password} onChange={(e) => setPassword(e.target.value)} className={`${AUTH_FIELD} pr-11`} />
+              <button type="button" onClick={() => setShowPw((v) => !v)}
+                aria-label={showPw ? "Hide password" : "Show password"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[#edeae3]/40 transition hover:text-[#edeae3]/80">
+                {showPw ? <EyeOff /> : <Eye />}
+              </button>
+            </div>
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Confirm password</span>
+            <input type="password" autoComplete="new-password" placeholder="Re-enter password"
+              value={confirm} onChange={(e) => setConfirm(e.target.value)}
+              className={`${AUTH_FIELD} ${mismatch ? "border-[#ef9a9a]/60 focus:border-[#ef9a9a] focus:ring-[#ef9a9a]/25" : ""}`} />
+            {mismatch && <p className="mt-1.5 text-xs font-semibold text-[#ef9a9a]">Passwords do not match.</p>}
+          </label>
+
+          {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
+
+          <button type="submit" disabled={!canSubmit} className={`${AUTH_BTN} mt-1`}>
+            {busy ? "Saving…" : "Set password & continue"}
+          </button>
+        </div>
+
+        <div className="mt-6 text-sm">
+          <button type="button" onClick={onSignOut} className="font-semibold text-[#edeae3]/45 transition hover:text-[#edeae3]/80">
+            Sign out
+          </button>
+        </div>
       </form>
     </AuthShell>
   );
@@ -271,6 +420,7 @@ function BakerSignup({
 }: { supabase: ReturnType<typeof getSupabase>; onBack: () => void }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState("IN");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -283,7 +433,12 @@ function BakerSignup({
 
   // Mismatch surfaces only once they've started typing the confirmation.
   const mismatch = confirm.length > 0 && password !== confirm;
-  const canSubmit = !busy && firstName.trim() && lastName.trim() && phone.trim()
+  // Phone must be a valid number for the chosen region. Error surfaces only once
+  // they've typed something (like the password mismatch). Server re-validates +
+  // enforces one-phone-per-baker.
+  const phoneValid = phone.trim().length > 0 && isValidPhoneNumber(phone.trim(), phoneCountry as CountryCode);
+  const phoneInvalid = phone.trim().length > 0 && !phoneValid;
+  const canSubmit = !busy && firstName.trim() && lastName.trim() && phoneValid
     && email && password.length >= 6 && password === confirm;
 
   async function signUp(e: React.FormEvent) {
@@ -310,6 +465,7 @@ function BakerSignup({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           phone: phone.trim(),
+          phone_country: phoneCountry,
         },
       },
     });
@@ -355,11 +511,24 @@ function BakerSignup({
             </label>
           </div>
 
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Phone</span>
-            <input type="tel" autoComplete="tel" placeholder="+91 98765 43210" value={phone}
-              onChange={(e) => setPhone(e.target.value)} className={AUTH_FIELD} />
-          </label>
+          <div className="flex gap-3">
+            <label className="block w-2/5 shrink-0">
+              <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Country</span>
+              <select value={phoneCountry} onChange={(e) => setPhoneCountry(e.target.value)}
+                className={AUTH_FIELD}>
+                {COUNTRY_OPTIONS.map((c) => (
+                  <option key={c.code} value={c.code} className="bg-[#161616]">{c.name} (+{c.calling})</option>
+                ))}
+              </select>
+            </label>
+            <label className="block flex-1">
+              <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Phone</span>
+              <input type="tel" autoComplete="tel" placeholder="98765 43210" value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className={`${AUTH_FIELD} ${phoneInvalid ? "border-[#ef9a9a]/60 focus:border-[#ef9a9a] focus:ring-[#ef9a9a]/25" : ""}`} />
+            </label>
+          </div>
+          {phoneInvalid && <p className="-mt-2 text-xs font-semibold text-[#ef9a9a]">Enter a valid phone number.</p>}
 
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Email</span>
@@ -462,6 +631,10 @@ function SetupBaker({
   };
 
   // Step 1 — create the baker (server generates the slug + writes the primary user).
+  // Phone (captured at signup, in user_metadata) is validated + checked for the
+  // one-phone-per-baker rule server-side here — the first point we can. A conflict
+  // isn't fixable in this step (phone lives on the signup screen), so we route the
+  // user to sign out and re-register with a different number.
   async function createBaker(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
@@ -470,7 +643,14 @@ function SetupBaker({
       await api.createBakerSelf({ name: name.trim() });
       setBusy(false);
       setStep("address");
-    } catch (e2) { fail(e2); }
+    } catch (e2) {
+      if ((e2 as { code?: string })?.code === "phone_taken") {
+        setErr("This phone number is already registered to another bakery. Sign out and sign up again with a different number.");
+        setBusy(false);
+        return;
+      }
+      fail(e2);
+    }
   }
 
   function pickLogo(f: File | null) {
@@ -554,6 +734,10 @@ function SetupBaker({
               {err && <p className="text-sm font-semibold text-[#ef9a9a]">{err}</p>}
               <button type="submit" disabled={busy || !name.trim()} className={`${AUTH_BTN} mt-1`}>
                 {busy ? "Creating…" : "Continue"}
+              </button>
+              <button type="button" onClick={onSignOut}
+                className="text-sm font-semibold text-[#edeae3]/45 transition hover:text-[#edeae3]/80">
+                Not you? Sign out
               </button>
             </div>
           </form>

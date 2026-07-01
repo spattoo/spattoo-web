@@ -137,6 +137,10 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
         body: JSON.stringify({ excluded_flavour_ids: excludedFlavourIds }),
       }),
 
+    // ── Staff (owner adds a staff member) ─────────────────────────────────────
+    addStaff: (payload: unknown) =>
+      authFetch("/api/baker/staff", { method: "POST", body: JSON.stringify(payload) }),
+
     // ── Profile / Settings / Storefront publish ───────────────────────────────
     updateBakerProfile: (payload: unknown) =>
       authFetch("/api/baker/profile", { method: "PATCH", body: JSON.stringify(payload) }),
