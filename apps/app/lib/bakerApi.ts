@@ -156,6 +156,13 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
         method: "POST",
         body: JSON.stringify({ storage_key: key, caption }),
       }),
+    // Convert an uploaded storefront content image (e.g. a Highlight photo) to optimised WebP →
+    // returns { key, url }. Used for section images that live in storefront_customizations jsonb.
+    optimizeStorefrontImage: (key: string) =>
+      authFetch("/api/baker/storefront-image", {
+        method: "POST",
+        body: JSON.stringify({ key }),
+      }),
     updateStorefrontPhotos: (photos: unknown) =>
       authFetch("/api/baker/storefront-photos", { method: "PUT", body: JSON.stringify({ photos }) }),
     deleteStorefrontPhoto: (id: string) =>
