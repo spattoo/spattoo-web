@@ -518,12 +518,12 @@ function BakerSignup({
           <div className="flex gap-3">
             <label className="block flex-1">
               <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">First name</span>
-              <input autoComplete="given-name" placeholder="Jane" value={firstName}
+              <input autoComplete="given-name" value={firstName}
                 onChange={(e) => setFirstName(e.target.value)} className={AUTH_FIELD} />
             </label>
             <label className="block flex-1">
               <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Last name</span>
-              <input autoComplete="family-name" placeholder="Doe" value={lastName}
+              <input autoComplete="family-name" value={lastName}
                 onChange={(e) => setLastName(e.target.value)} className={AUTH_FIELD} />
             </label>
           </div>
@@ -540,7 +540,7 @@ function BakerSignup({
             </label>
             <label className="block flex-1">
               <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Phone</span>
-              <input type="tel" autoComplete="tel" placeholder="98765 43210" value={phone}
+              <input type="tel" autoComplete="tel" value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className={`${AUTH_FIELD} ${phoneInvalid ? "border-[#ef9a9a]/60 focus:border-[#ef9a9a] focus:ring-[#ef9a9a]/25" : ""}`} />
             </label>
@@ -549,7 +549,7 @@ function BakerSignup({
 
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Email</span>
-            <input type="email" autoComplete="email" placeholder="you@bakery.com" value={email}
+            <input type="email" autoComplete="email" value={email}
               onChange={(e) => setEmail(e.target.value)} className={AUTH_FIELD} />
           </label>
 
