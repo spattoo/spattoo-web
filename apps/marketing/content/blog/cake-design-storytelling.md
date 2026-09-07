@@ -184,6 +184,15 @@ The interesting direction is not more impressive cakes. It is more specific ones
 that only makes complete sense to about six people, because it is built out of things
 only those six know, is doing something a technically superior cake cannot.
 
+A customer arrives with a story and no design. The baker has to hold the finished cake
+in their head, and the customer has to agree to something they cannot see yet. Almost
+everything that goes wrong in custom cake work goes wrong in that gap — rarely in the
+baking, which is the part the trade has already mastered.
+
+So the useful question for the next few years is probably not how to make cakes more
+impressive. It is how two people who cannot see the same thing can agree on it before
+anyone turns on the oven.
+
 The measure stops being *look how creative cakes have become*.
 
 It becomes *look at what people are using cakes to say*.
