@@ -19,13 +19,12 @@ export default function Page() {
       <SiteNav />
 
       <section className="max-w-3xl mx-auto px-6 pt-32 pb-24">
-        <p className="text-xs tracking-[0.35em] uppercase text-[#6b8f7e] mb-3">Blog</p>
-        <h1 className="text-3xl md:text-4xl font-bold mb-4 text-[#edeae3]">
-          Cake design, written down
-        </h1>
-        <p className="text-[#edeae3]/60 mb-12 max-w-xl">
-          Notes on how cake design is changing, and on the people doing the changing.
-        </p>
+        {/* The eyebrow IS the h1. A big "Cake design, written down" title plus a subtitle
+            above a single article said the same thing three times before the reader reached
+            anything worth reading. Removing it outright would have left the page with no h1
+            at all, which costs search ranking and leaves a screen reader without a page
+            heading — so the label carries the semantics and stays visually quiet. */}
+        <h1 className="text-xs tracking-[0.35em] uppercase text-[#6b8f7e] mb-12">Blog</h1>
 
         {/* An empty index is reachable only on a preview deploy with nothing to show —
             production hides the nav item entirely in that case. Still handled, because a
