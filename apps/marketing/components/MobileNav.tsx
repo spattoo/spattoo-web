@@ -4,13 +4,22 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { SHOW_SIGNIN, SIGNUP_URL } from "../lib/domain";
+import { BLOG_IN_NAV } from "../lib/blog";
 
+// ⚠️ Hrefs are ROOT-RELATIVE ("/#about"), not bare fragments ("#about"), and must stay
+// that way. A bare fragment resolves against the CURRENT page, so from /blog or /privacy
+// the drawer's section links did nothing at all — they scrolled for an id that is only on
+// the home page. SiteNav has always used the "/#" form; this was the copy that drifted.
+// Adding /blog made it matter, because it multiplies the pages the drawer is opened from.
 const links = [
-  { label: "How It Works", href: "#how-it-works" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "About Us", href: "#about" },
-  { label: "Contact", href: "#contact" },
-];
+  { label: "How It Works", href: "/#how-it-works" },
+  { label: "Pricing", href: "/#pricing" },
+  { label: "About Us", href: "/#about" },
+  // Same position as the desktop header, so the two menus read in one order.
+  // Filtered out below when there is nothing published — see BLOG_IN_NAV in lib/blog.ts.
+  { label: "Blog", href: "/blog", blog: true },
+  { label: "Contact", href: "/#contact" },
+].filter((l) => !l.blog || BLOG_IN_NAV);
 
 export default function MobileNav() {
   const [open, setOpen] = useState(false);

@@ -1,9 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import MobileNav from "./MobileNav";
 import { APP_URL, SHOW_SIGNIN, SIGNUP_URL } from "../lib/domain";
+import { BLOG_IN_NAV } from "../lib/blog";
 
 export default function SiteNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -39,6 +41,19 @@ export default function SiteNav() {
         <a href="/#how-it-works" className="hover:text-[#edeae3] transition-colors">How It Works</a>
         <a href="/#pricing" className="hover:text-[#edeae3] transition-colors">Pricing</a>
         <a href="/#about" className="hover:text-[#edeae3] transition-colors">About Us</a>
+        {/* Between About Us and Contact deliberately: the first four items are the pitch in
+            order (what it does, what it costs, who we are), and Contact is the end of that
+            run. Writing sits with "who we are" rather than interrupting the pitch, and
+            Contact stays last where people expect to find it.
+
+            Hidden entirely when there is nothing to show — see BLOG_IN_NAV in lib/blog.ts.
+            On production that means the item appears the moment the first post is published. */}
+        {/* <Link>, where the neighbours are plain <a>: those point at "/#section" anchors on
+            the home page, but this is a real route change, so it gets client-side navigation
+            and prefetch. */}
+        {BLOG_IN_NAV && (
+          <Link href="/blog" className="hover:text-[#edeae3] transition-colors">Blog</Link>
+        )}
         <a href="/#contact" className="hover:text-[#edeae3] transition-colors">Contact</a>
       </div>
 

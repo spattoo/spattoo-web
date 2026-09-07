@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BASE_DOMAIN } from "@/lib/domain";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import Analytics from "@/components/Analytics";
 import "./globals.css";
@@ -21,9 +22,25 @@ const fraunces = Fraunces({
   weight: ["400", "500"],
 });
 
+const SITE_URL = `https://www.${BASE_DOMAIN}`;
+
 export const metadata: Metadata = {
+  // metadataBase is what turns a relative OG image path into the absolute URL that
+  // WhatsApp, LinkedIn and Twitter require. Without it Next emits the relative path,
+  // every scraper fails to resolve it, and the card silently falls back to text — which
+  // is exactly what this site was doing until now. Derived from BASE_DOMAIN so the dev
+  // deploy advertises dev URLs and prod advertises prod, with no second variable to set
+  // wrong independently.
+  metadataBase: new URL(SITE_URL),
   title: "Spattoo — 3D Cake Designer for Bakers",
   description: "Spattoo is a 3D cake designer tool for bakers. Let your customers design custom cakes online, confirm orders instantly, and manage everything in one place.",
+  openGraph: {
+    siteName: "Spattoo",
+    type: "website",
+    locale: "en_IN",
+    url: SITE_URL,
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({
