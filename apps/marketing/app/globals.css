@@ -140,6 +140,33 @@ body {
 .blog-doc blockquote p {
   margin: 0;
 }
+
+/* Figures. react-markdown puts a standalone image and the italic line beneath it into ONE
+   paragraph, so the caption is `em` immediately following `img` — that adjacency is what is
+   styled here rather than a wrapper class, because markdown has no way to name one and
+   rehype-raw is not installed. If a caption ever renders inline instead of beneath, the cause
+   is a blank line between the image and the italic line in the markdown; they must be
+   consecutive. */
+.blog-doc p > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  margin: 2.25rem 0 0;
+}
+.blog-doc p > img + em {
+  display: block;
+  margin-top: 0.6rem;
+  font-style: normal;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: rgba(237, 234, 227, 0.45);
+}
+/* The paragraph that holds a figure carries the spacing below it, so a figure never sits
+   tight against the heading of the next style. */
+.blog-doc p:has(> img) {
+  margin-bottom: 2.25rem;
+}
 .legal-doc code {
   background: rgba(255, 255, 255, 0.06);
   padding: 0.1rem 0.35rem;

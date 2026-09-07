@@ -100,8 +100,14 @@ That arc is worth sitting with. A near-forgotten 1930s technique returned becaus
 video platform made it visible again, and a new generation used it to say something the
 1930s never meant by it.
 
+![A two-tier pink and sage cake covered in layered piped swags, tassels, shell borders and fine string work](/blog/vintage-lambeth.webp)
+*Illustration — Lambeth over-piping: swags, tassels and shell borders, built up layer on layer.*
+
 **Sculpted cakes.** Cars, handbags, animals, instruments, buildings. Here the cake stops
 carrying decoration and becomes the subject itself.
+
+![A cake sculpted as a stack of three antique books, with a piped shell border where it meets the stand](/blog/sculpted.webp)
+*Illustration — The cake as object. The piped border at the base is what gives it away.*
 
 **Hyper-realistic cakes.** The point is the double take. In 2013 Natalie Sideserf sculpted
 a bust of Willie Nelson out of modelling chocolate, bandana and braids included, for a
@@ -110,13 +116,22 @@ of the site. She and her husband both left their jobs and opened Sideserf Cake S
 the back of it. The story of a hyper-real cake is surprise: the gap between what you see
 and what it is.
 
+![A cake made to look like a worn leather satchel, one end cut away to reveal sponge and buttercream layers](/blog/hyper-realistic.webp)
+*Illustration — The double take, and the moment it resolves. Not the cake described above.*
+
 **Miniature scenes.** Possibly the clearest storytelling of all. A family house. A
 workplace. A childhood street. A travel memory built at ten centimetres tall. The cake
 becomes a small three-dimensional scene of something that actually happened.
 
+![A round cake topped with a miniature house and courtyard modelled in fondant at doll's-house scale](/blog/miniature-scene.webp)
+*Illustration — A whole scene at doll's-house scale.*
+
 **Character and fandom cakes.** A character says "this is something I love", and love of
 a thing is a real part of how people describe themselves. Fandom is identity in
 shorthand.
+
+![A round cake decorated as a cricket pitch with a fondant bat, ball and stumps](/blog/fandom-cricket.webp)
+*Illustration — fandom as shorthand. No team, no badge, and still unmistakable.*
 
 ## 6. So what are people actually saying?
 
