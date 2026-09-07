@@ -54,7 +54,7 @@ the design.
 
 The cake becomes something close to a condensed visual biography.
 
-## 4. Pinterest, Instagram, TikTok and YouTube changed the brief
+## 4. Pinterest, Instagram and YouTube changed the brief
 
 The easy claim is that social media made cakes more creative. That is not quite right,
 and it undersells what happened.
@@ -74,9 +74,10 @@ was never invited, who is it for? A cake built to be meaningful to one person an
 built to be impressive to everyone else are not always the same cake. The best designers
 are quietly choosing between those two briefs on every job.
 
-**TikTok** made the process part of the story. People watch the carving, the piping, the
-painting, the reveal. The finished cake is no longer the whole product. This turns the
-cake designer into something of a maker and a broadcaster at the same time.
+**Short video** made the process part of the story. On Reels and Shorts, people watch the
+carving, the piping, the painting, the reveal. The finished cake is no longer the whole
+product. This turns the cake designer into something of a maker and a broadcaster at the
+same time.
 
 **YouTube** spread technique. Sculpting, fondant work, airbrushing, internal structure
 and realistic modelling are all teachable now without an apprenticeship. A baker in
@@ -92,7 +93,7 @@ Five styles show the range of what the cake is now asked to do.
 *The Lambeth Method of Cake Decoration and Practical Pastries*. It is built from layer
 upon layer of piped scrolls, swags, shells and string work — closer to baroque
 architecture than to icing. It peaked around the 1950s, then fondant pushed it aside for
-decades. It came back in the 2020s through Instagram and TikTok, in bright colours and
+decades. It came back in the 2020s through social media, in bright colours and
 with a sense of humour the original never had.
 
 That arc is worth sitting with. A near-forgotten 1930s technique returned because a
