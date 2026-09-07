@@ -37,19 +37,21 @@ export const BLOG_POSTS: BlogPost[] = [
     description:
       "Cake design has shifted from marking an occasion to being about a specific person. What changed, and what it asks of the people who make them.",
     file: "cake-design-storytelling.md",
-    // ⚠️ DRAFT ON PURPOSE — do not flip this without clearing the blockers recorded in
-    // the working file (Downloads/Blogs/Spattoo_Cake_Storytelling_ARTICLE_DRAFT.md,
-    // section "Before this goes live"). The open ones are rights-related, not editorial:
-    //   · no cake photographs are licensed yet — a Pinterest or Instagram find is not a
-    //     licence, and every cake photo belongs to whoever shot it;
-    //   · the Indian baker quotes that sections 7 and 8 are built to carry do not exist
-    //     yet, and nothing here may be presented as a quote until they do;
-    //   · the Times of India source sits under /life-style/spotlight/, which is branded
-    //     content rather than the newsroom, and is unused until someone confirms.
-    // Publishing early is the expensive mistake here: a takedown on a marketing site is
-    // public in a way that a missing article is not.
-    status: "draft",
-    date: "",
+    // Published 7 September 2026, after the rights questions were closed rather than
+    // waived. Nothing in the article needs anyone's permission: the illustrations are
+    // generated rather than licensed, no cake photograph belonging to a third party
+    // appears, nobody is quoted, and the one branded-content source was never cited.
+    //
+    // ⚠️ Still outstanding, and NOT blockers — they are improvements:
+    //   · sections 7 and 8 are about the Indian market and no Indian baker speaks in
+    //     them. Quotes are the strongest thing this piece could still gain, and the
+    //     outreach material for gathering them is written.
+    //   · the miniature-scene illustration is a Tuscan villa. The prompt named no region
+    //     so the model defaulted to Mediterranean, and the paragraph beside it says "a
+    //     family house". A corrected Indian-courtyard prompt is waiting in
+    //     Downloads/Blogs/image-prompts.md.
+    status: "published",
+    date: "7 September 2026",
     readingMinutes: 8,
   },
 ];
