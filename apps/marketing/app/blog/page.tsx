@@ -6,9 +6,19 @@ import { visiblePosts } from "@/lib/blog";
 
 export const dynamic = "force-static";
 
+const TITLE = "Blog — Spattoo";
+const DESCRIPTION = "Writing about cake design, and what people use cakes to say.";
+
 export const metadata: Metadata = {
-  title: "Blog — Spattoo",
-  description: "Writing about cake design, and what people use cakes to say.",
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    type: "website",
+    url: "/blog",
+    images: [{ url: "/blog/og-blog.jpg", width: 1200, height: 630, alt: "A vintage-style piped cake" }],
+  },
 };
 
 export default function Page() {

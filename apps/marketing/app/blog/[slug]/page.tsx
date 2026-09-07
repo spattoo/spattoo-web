@@ -25,6 +25,26 @@ export async function generateMetadata({
     description: post.description,
     // A draft that leaks onto a preview URL should still never be indexed.
     robots: post.status === "draft" ? { index: false, follow: false } : undefined,
+    // The share card. WhatsApp is the channel this gets sent on, and it reads OG tags
+    // only — no OG image means a bare line of text next to a favicon, which is what
+    // every link to this site produced before now. `title` here is the ARTICLE title
+    // rather than the page title, so a shared link says what the piece is instead of
+    // ending on the site name.
+    openGraph: {
+      title: post.title,
+      description: post.description,
+      type: "article",
+      url: `/blog/${post.slug}`,
+      publishedTime: post.date || undefined,
+      images: [
+        {
+          url: "/blog/og-article.jpg",
+          width: 1200,
+          height: 630,
+          alt: "A cake made to look like a leather satchel, cut open to reveal sponge inside",
+        },
+      ],
+    },
   };
 }
 
