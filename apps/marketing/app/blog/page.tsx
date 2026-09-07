@@ -50,6 +50,20 @@ export default function Page() {
                     {p.title}
                   </h2>
                   <p className="text-sm text-[#edeae3]/60 leading-relaxed">{p.description}</p>
+
+                  {/* An explicit cue, because the card's only affordance was group-hover on the
+                      title — and there is no hover on a phone, which is where most of this
+                      audience reads. #a8c5b5 is the link colour already used on the legal pages
+                      and the article's own "All articles" link, so this reads as a link here
+                      because it reads as one everywhere else on the site. The arrow is
+                      aria-hidden: it is decoration, and a screen reader announcing "Read article
+                      right arrow" is worse than silence. */}
+                  <span className="mt-3 inline-flex items-center gap-1.5 text-sm text-[#a8c5b5] group-hover:text-[#edeae3] transition-colors">
+                    Read article
+                    <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">
+                      &rarr;
+                    </span>
+                  </span>
                 </Link>
               </li>
             ))}
