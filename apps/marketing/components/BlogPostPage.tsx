@@ -49,10 +49,11 @@ export default function BlogPostPage({ slug }: { slug: string }) {
         </p>
 
         {/* `.legal-doc` is the site's generic prose style, despite the name — it is the
-            markdown body treatment shared by every long-form page. Reused rather than
-            duplicated into a near-identical `.blog-doc`; if it ever needs to differ,
-            split it then rather than carrying two copies now. */}
-        <div className="legal-doc">
+            markdown body treatment shared by every long-form page. `.blog-doc` rides on
+            top of it with the few overrides an article needs — currently just the pull
+            quote, which is emphasis here and a dimmed aside on a policy page. Additive,
+            not a second copy. */}
+        <div className="legal-doc blog-doc">
           <Markdown remarkPlugins={[remarkGfm]}>{body}</Markdown>
         </div>
 

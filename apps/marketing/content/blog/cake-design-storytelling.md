@@ -6,9 +6,10 @@ parents who painted as amateurs. Today she runs Red Rose Cake, with two shops in
 Istanbul, and her hyper-real cakes reached a global audience during the pandemic
 lockdowns.
 
-Notice what the first cake was about. It was not about the birthday. It was about the
-boy, and the one object he loved most that year. The occasion was only the reason to
-make it.
+Notice what the first cake was about.
+
+> It was not about the birthday. It was about the boy, and the one object he loved most
+> that year. The occasion was only the reason to make it.
 
 That is the shift this article is about.
 

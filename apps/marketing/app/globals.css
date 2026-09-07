@@ -121,6 +121,25 @@ body {
   margin: 1rem 0;
   color: rgba(237, 234, 227, 0.6);
 }
+
+/* Articles carry `.legal-doc .blog-doc` together: the first is the shared prose base,
+   this is the short list of places an article should NOT read like a policy page.
+   It must stay AFTER the rule above — same specificity, so source order decides.
+
+   A legal blockquote is a dimmed aside. An article's is the opposite: the one line the
+   piece turns on, pulled out of the flow to be read first and remembered. So it goes
+   brighter than the body rather than greyer, and slightly larger. */
+.blog-doc blockquote {
+  border-left: 3px solid rgba(107, 143, 126, 0.85);
+  padding-left: 1.25rem;
+  margin: 2rem 0;
+  color: #edeae3;
+  font-size: 1.15rem;
+  line-height: 1.6;
+}
+.blog-doc blockquote p {
+  margin: 0;
+}
 .legal-doc code {
   background: rgba(255, 255, 255, 0.06);
   padding: 0.1rem 0.35rem;
