@@ -165,6 +165,18 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
       authFetch("/api/garnishes", { method: "POST", body: JSON.stringify(payload) }),
     deleteGarnish: (id: number | string) =>
       authFetch(`/api/garnishes/${id}`, { method: "DELETE" }),
+
+    // ── Card toppers: compositions someone made in the card topper studio ──────────────────────
+    // ⚠️ Stored as its OBJECT LIST — the words and the shapes, never the contours cut from them —
+    // see supabase/baker_card_toppers.sql. That is what lets a later improvement to how a word is
+    // cut reach every topper already kept. The thumbnail rides along as base64 and is only a tile;
+    // a failure to store it must not cost the composition, which is why the server swallows that
+    // error and keeps the row.
+    fetchCardToppers: () => authGet("/api/card-toppers").catch(() => []),
+    saveCardTopper: (payload: { name: string; payload: unknown; thumbBase64?: string | null }) =>
+      authFetch("/api/card-toppers", { method: "POST", body: JSON.stringify(payload) }),
+    deleteCardTopper: (id: number | string) =>
+      authFetch(`/api/card-toppers/${id}`, { method: "DELETE" }),
     deleteUpload: (id: number | string) =>
       authFetch(`/api/uploads/${id}`, { method: "DELETE" }),
     // Only the NAME is patchable — the storage key, the attribution and the tenant are server-derived
