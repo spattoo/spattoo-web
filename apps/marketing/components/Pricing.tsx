@@ -295,11 +295,11 @@ const tiers = [
  *
  * `quarterly` is monthly × 3 × (1 − 10%), the same derivation planPricing.periodPrice makes.
  *
- * The SAVING is said in the unit that reads biggest and is still true. Time wins where there is
- * enough of it — "2 months free" is a sentence a baker repeats, where "-17%" is arithmetic they
- * have to do first. Below a month it does not: quarterly's 10% is 0.30 months, which is a fraction
- * nobody says out loud, and "9 days free" undersells a tenth off because nine is just a small
- * number. So months above a month, percentage below it.
+ * The SAVING in the picker is said in TIME, and the PERCENTAGE goes on each card — because the
+ * percentage is per TIER. Yearly is 16.5% on Flame and 16.6% on Blaze (price_yearly is a round
+ * ₹9,999 / ₹24,999 rather than derived from the ladder, so it is not the 17% billing_periods
+ * claims). One figure in this picker would be wrong for one of them; "2 months free" is right for
+ * both. Between the two a reader gets the headline and the exact number, each where it is true.
  *
  * ⚠️ SAME RULE AND SAME WORDS as the in-app picker (spattoo-core billing/planPricing.js
  * freeTimeLabel). A baker who compares this page to the picker must not find two different claims
@@ -307,7 +307,7 @@ const tiers = [
  */
 const INTERVALS = [
   { key: "monthly"   as const, label: "Monthly",   suffix: "mo",  saving: null },
-  { key: "quarterly" as const, label: "Quarterly", suffix: "qtr", saving: "10% off" },
+  { key: "quarterly" as const, label: "Quarterly", suffix: "qtr", saving: "9 days free" },
   { key: "annual"    as const, label: "Annual",    suffix: "yr",  saving: "2 months free" },
 ];
 type IntervalKey = (typeof INTERVALS)[number]["key"];
@@ -327,18 +327,26 @@ function fullPrice(tier: { monthly: number }, key: IntervalKey) {
   return tier.monthly * months;
 }
 
-/* ⚠️ NO PERCENTAGE ON THE CARD, and the reason is worth keeping.
+/* ── The discount as a percentage, PER TIER, from the two prices on the card ─────────────────────
  *
- * It was built and then taken out. `billing_periods.discount_pct` says yearly is 17%, but the
- * yearly prices are 16.59% (Flame) and 16.64% (Blaze) off twelve months at the monthly rate —
- * `price_yearly` was set as a round ₹9,999 rather than derived from the ladder, so the intent and
- * the arithmetic disagree. Printed beside a struck ₹11,988 and a ₹9,999 it reads as either an
- * over-claim (17) or an oddly shy one (16), and neither is worth the pixels.
+ * ⚠️ NOT `billing_periods.discount_pct`, and that is the reason it lives on the CARD rather than in
+ * the interval picker. That column says yearly is 17%; the yearly prices are 16.59% (Flame) and
+ * 16.64% (Blaze) off twelve months at the monthly rate, because price_yearly was set as a round
+ * ₹9,999 / ₹24,999 rather than derived from the ladder. A single figure in the picker would be
+ * wrong for one tier; computed from the two numbers it sits beside, it cannot be.
  *
- * The struck price says the same thing without a number to dispute: ₹11,988 → ₹9,999 is a saving a
- * reader can see, and the interval picker above already names what it is worth in time. If a
- * percentage is ever wanted here, fix `price_yearly` first so the ladder and the prices agree.
+ * FLOORED to a tenth — under-state by at most 0.1 of a point, never over-state. A whole number
+ * loses its ".0", because "10.0% off" reads like a figure calculated AT the reader.
+ *
+ * Mirrors spattoo-core billing/planPricing.js `discountLabel`. Two surfaces, one claim.
  */
+function discountLabel(tier: { monthly: number }, key: IntervalKey, price: number) {
+  const full = fullPrice(tier, key);
+  if (!full || price >= full) return null;
+  const pct = Math.floor(((full - price) / full) * 1000) / 10;
+  if (pct < 0.1) return null;
+  return `${Number.isInteger(pct) ? pct : pct.toFixed(1)}% off`;
+}
 
 export default function Pricing() {
   const [interval, setInterval] = useState<IntervalKey>("monthly");
@@ -500,6 +508,18 @@ export default function Pricing() {
                   {!tier.quote && tier[interval] > 0 && (
                     <span className="text-[#edeae3]/55 text-sm mb-1">
                       /{current.suffix}
+                    </span>
+                  )}
+                  {/* ⚠️ EVERY price here is the BASE. Checkout charges base + 18% GST, so ₹2,697 on
+                      this page is ₹3,182.81 on the card. Saying so on the number costs one faint
+                      word; finding out at checkout costs trust. Not on the trial or a quote tier —
+                      there is no tax on nothing, and "let's talk" is not a price. */}
+                  {!tier.quote && tier[interval] > 0 && (
+                    <span className="text-[#edeae3]/35 text-xs mb-1.5">(+GST)</span>
+                  )}
+                  {!tier.quote && discountLabel(tier, interval, tier[interval]) && (
+                    <span className="mb-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-[#6b8f7e]/15 text-[#6b8f7e]">
+                      {discountLabel(tier, interval, tier[interval])}
                     </span>
                   )}
                 </div>
