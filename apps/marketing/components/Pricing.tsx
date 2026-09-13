@@ -313,6 +313,29 @@ function formatPrice(amount: number) {
   return `₹${amount.toLocaleString("en-IN")}`;
 }
 
+/* ── What the same span costs at the monthly rate ────────────────────────────────────────────────
+ * The struck-through number beside the price. It is DERIVED (monthly × months), never a fourth
+ * column to keep in step — the saving is the difference between two prices already on the card, so
+ * it cannot drift from them.
+ */
+function fullPrice(tier: { monthly: number }, key: IntervalKey) {
+  const months = key === "quarterly" ? 3 : key === "annual" ? 12 : 1;
+  return tier.monthly * months;
+}
+
+/* ⚠️ NO PERCENTAGE ON THE CARD, and the reason is worth keeping.
+ *
+ * It was built and then taken out. `billing_periods.discount_pct` says yearly is 17%, but the
+ * yearly prices are 16.59% (Flame) and 16.64% (Blaze) off twelve months at the monthly rate —
+ * `price_yearly` was set as a round ₹9,999 rather than derived from the ladder, so the intent and
+ * the arithmetic disagree. Printed beside a struck ₹11,988 and a ₹9,999 it reads as either an
+ * over-claim (17) or an oddly shy one (16), and neither is worth the pixels.
+ *
+ * The struck price says the same thing without a number to dispute: ₹11,988 → ₹9,999 is a saving a
+ * reader can see, and the interval picker above already names what it is worth in time. If a
+ * percentage is ever wanted here, fix `price_yearly` first so the ladder and the prices agree.
+ */
+
 export default function Pricing() {
   const [interval, setInterval] = useState<IntervalKey>("monthly");
   const current = INTERVALS.find((i) => i.key === interval)!;
@@ -446,7 +469,17 @@ export default function Pricing() {
                   prices beside it. A quote tier that whispers reads as an afterthought; the point
                   is that "let's talk" IS the offer, sitting level with ₹999 and ₹2,499. */}
               <div>
-                <div className="flex items-end gap-1">
+                {/* ⚠️ The undiscounted price is shown STRUCK beside the real one, not implied by a
+                    percentage. "₹2,997 → ₹2,697" is a saving a reader can see without arithmetic;
+                    "10% off" alone asks them to work out what it is 10% OF. The percentage is kept
+                    as well because it is the number people compare across products — but it is
+                    derived from these two figures, so the three can never disagree. */}
+                <div className="flex items-end gap-2 flex-wrap">
+                  {!tier.quote && tier[interval] > 0 && fullPrice(tier, interval) > tier[interval] && (
+                    <span className="text-[#edeae3]/35 text-lg line-through mb-0.5">
+                      {formatPrice(fullPrice(tier, interval))}
+                    </span>
+                  )}
                   <span className="text-3xl font-black text-[#edeae3]">
                     {tier.quote ? "Let's talk" : formatPrice(tier[interval])}
                   </span>
