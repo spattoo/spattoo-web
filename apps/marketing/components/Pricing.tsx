@@ -505,17 +505,19 @@ export default function Pricing() {
                   <span className="text-3xl font-black text-[#edeae3]">
                     {tier.quote ? "Let's talk" : formatPrice(tier[interval])}
                   </span>
+                  {/* ⚠️ BEFORE the period, not after: "(+GST)" qualifies the AMOUNT, and
+                      "₹999 /mo (+GST)" reads as though the month were the thing being taxed.
+                      EVERY price here is the BASE — checkout charges base + 18%, so ₹2,697 on this
+                      page is ₹3,182.81 on the card. One faint word against a surprise at checkout.
+                      Not on the trial or a quote tier: there is no tax on nothing, and "let's talk"
+                      is not a price. */}
+                  {!tier.quote && tier[interval] > 0 && (
+                    <span className="text-[#edeae3]/35 text-xs mb-1.5">(+GST)</span>
+                  )}
                   {!tier.quote && tier[interval] > 0 && (
                     <span className="text-[#edeae3]/55 text-sm mb-1">
                       /{current.suffix}
                     </span>
-                  )}
-                  {/* ⚠️ EVERY price here is the BASE. Checkout charges base + 18% GST, so ₹2,697 on
-                      this page is ₹3,182.81 on the card. Saying so on the number costs one faint
-                      word; finding out at checkout costs trust. Not on the trial or a quote tier —
-                      there is no tax on nothing, and "let's talk" is not a price. */}
-                  {!tier.quote && tier[interval] > 0 && (
-                    <span className="text-[#edeae3]/35 text-xs mb-1.5">(+GST)</span>
                   )}
                   {!tier.quote && discountLabel(tier, interval, tier[interval]) && (
                     <span className="mb-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-[#6b8f7e]/15 text-[#6b8f7e]">
