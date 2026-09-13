@@ -295,15 +295,19 @@ const tiers = [
  *
  * `quarterly` is monthly × 3 × (1 − 10%), the same derivation planPricing.periodPrice makes.
  *
- * The SAVING is said in time, not percent — "2 months free" is a sentence a baker repeats, "-17%"
- * is arithmetic they have to do first. The unit follows the size: yearly's 17% is 2.04 months,
- * quarterly's 10% is 0.30, and "0.3 months free" is not something anybody says. Same rule, same
- * words as the in-app picker (spattoo-core billing/planPricing.js freeTimeLabel) — a baker who
- * compares the page to the app must not find two different claims about one discount.
+ * The SAVING is said in the unit that reads biggest and is still true. Time wins where there is
+ * enough of it — "2 months free" is a sentence a baker repeats, where "-17%" is arithmetic they
+ * have to do first. Below a month it does not: quarterly's 10% is 0.30 months, which is a fraction
+ * nobody says out loud, and "9 days free" undersells a tenth off because nine is just a small
+ * number. So months above a month, percentage below it.
+ *
+ * ⚠️ SAME RULE AND SAME WORDS as the in-app picker (spattoo-core billing/planPricing.js
+ * freeTimeLabel). A baker who compares this page to the picker must not find two different claims
+ * about one discount — if that function's rule changes, these strings change with it.
  */
 const INTERVALS = [
   { key: "monthly"   as const, label: "Monthly",   suffix: "mo",  saving: null },
-  { key: "quarterly" as const, label: "Quarterly", suffix: "qtr", saving: "9 days free" },
+  { key: "quarterly" as const, label: "Quarterly", suffix: "qtr", saving: "10% off" },
   { key: "annual"    as const, label: "Annual",    suffix: "yr",  saving: "2 months free" },
 ];
 type IntervalKey = (typeof INTERVALS)[number]["key"];
