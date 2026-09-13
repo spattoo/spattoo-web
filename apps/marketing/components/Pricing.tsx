@@ -183,6 +183,7 @@ const tiers = [
     quote: false as const,
     tagline: "Less than the price of one cake",
     monthly: 999,
+    quarterly: 2697,   // 999 x 3 x 0.9
     annual: 9999,
     accent: "#c4852a",
     border: "rgba(196,133,42,0.3)",
@@ -208,6 +209,7 @@ const tiers = [
     quote: false as const,
     tagline: "Your brand. Your templates. Your rules.",
     monthly: 2499,
+    quarterly: 6747,  // 2499 x 3 x 0.9
     annual: 24999,
     accent: "#c4512a",
     border: "rgba(196,81,42,0.5)",
@@ -261,6 +263,7 @@ const tiers = [
     quote: true as const,
     tagline: "Bigger volumes, set up around your bakery.",
     monthly: 4999,
+    quarterly: 13497, // 4999 x 3 x 0.9
     annual: 49999,
     accent: "#8b3a2a",
     border: "rgba(139,58,42,0.4)",
@@ -282,13 +285,72 @@ const tiers = [
   },
 ];
 
+/* ── The three intervals, and what each is WORTH ─────────────────────────────────────────────────
+ *
+ * ⚠️ THESE PRICES ARE A SECOND COPY. The authority is `billing_periods` + `subscription_plans` in
+ * the API, which is what the in-app picker reads and what Razorpay charges; this page is a static
+ * marketing build with no API call, so the numbers are repeated here by hand. They were already
+ * repeated before quarterly — this note exists so the next person changing a price knows there are
+ * two places, and that the DB is the one that takes money.
+ *
+ * `quarterly` is monthly × 3 × (1 − 10%), the same derivation planPricing.periodPrice makes.
+ *
+ * The SAVING in the picker is said in TIME, and the PERCENTAGE goes on each card — because the
+ * percentage is per TIER. Yearly is 16.5% on Flame and 16.6% on Blaze (price_yearly is a round
+ * ₹9,999 / ₹24,999 rather than derived from the ladder, so it is not the 17% billing_periods
+ * claims). One figure in this picker would be wrong for one of them; "2 months free" is right for
+ * both. Between the two a reader gets the headline and the exact number, each where it is true.
+ *
+ * ⚠️ SAME RULE AND SAME WORDS as the in-app picker (spattoo-core billing/planPricing.js
+ * freeTimeLabel). A baker who compares this page to the picker must not find two different claims
+ * about one discount — if that function's rule changes, these strings change with it.
+ */
+const INTERVALS = [
+  { key: "monthly"   as const, label: "Monthly",   suffix: "mo",  saving: null },
+  { key: "quarterly" as const, label: "Quarterly", suffix: "qtr", saving: "9 days free" },
+  { key: "annual"    as const, label: "Annual",    suffix: "yr",  saving: "2 months free" },
+];
+type IntervalKey = (typeof INTERVALS)[number]["key"];
+
 function formatPrice(amount: number) {
   if (amount === 0) return "Free";
   return `₹${amount.toLocaleString("en-IN")}`;
 }
 
+/* ── What the same span costs at the monthly rate ────────────────────────────────────────────────
+ * The struck-through number beside the price. It is DERIVED (monthly × months), never a fourth
+ * column to keep in step — the saving is the difference between two prices already on the card, so
+ * it cannot drift from them.
+ */
+function fullPrice(tier: { monthly: number }, key: IntervalKey) {
+  const months = key === "quarterly" ? 3 : key === "annual" ? 12 : 1;
+  return tier.monthly * months;
+}
+
+/* ── The discount as a percentage, PER TIER, from the two prices on the card ─────────────────────
+ *
+ * ⚠️ NOT `billing_periods.discount_pct`, and that is the reason it lives on the CARD rather than in
+ * the interval picker. That column says yearly is 17%; the yearly prices are 16.59% (Flame) and
+ * 16.64% (Blaze) off twelve months at the monthly rate, because price_yearly was set as a round
+ * ₹9,999 / ₹24,999 rather than derived from the ladder. A single figure in the picker would be
+ * wrong for one tier; computed from the two numbers it sits beside, it cannot be.
+ *
+ * FLOORED to a tenth — under-state by at most 0.1 of a point, never over-state. A whole number
+ * loses its ".0", because "10.0% off" reads like a figure calculated AT the reader.
+ *
+ * Mirrors spattoo-core billing/planPricing.js `discountLabel`. Two surfaces, one claim.
+ */
+function discountLabel(tier: { monthly: number }, key: IntervalKey, price: number) {
+  const full = fullPrice(tier, key);
+  if (!full || price >= full) return null;
+  const pct = Math.floor(((full - price) / full) * 1000) / 10;
+  if (pct < 0.1) return null;
+  return `${Number.isInteger(pct) ? pct : pct.toFixed(1)}% off`;
+}
+
 export default function Pricing() {
-  const [annual, setAnnual] = useState(false);
+  const [interval, setInterval] = useState<IntervalKey>("monthly");
+  const current = INTERVALS.find((i) => i.key === interval)!;
   // Hidden tiers stay in `tiers` — see the Forge block above for why — so the page renders this.
   const shown = tiers.filter((t) => !t.hidden);
 
@@ -302,25 +364,33 @@ export default function Pricing() {
         </h2>
 
 
-        {/* Toggle */}
-        <div className="flex items-center justify-center gap-4 mb-8 mt-6">
-          <span className={`text-sm transition-colors ${!annual ? "text-[#edeae3]" : "text-[#edeae3]/40"}`}>
-            Monthly
-          </span>
-          <button
-            onClick={() => setAnnual(!annual)}
-            className="relative w-12 h-6 rounded-full transition-colors cursor-pointer"
-            style={{ backgroundColor: annual ? "#6b8f7e" : "rgba(255,255,255,0.1)" }}
-          >
-            <span
-              className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all"
-              style={{ left: annual ? "28px" : "4px" }}
-            />
-          </button>
-          <span className={`text-sm transition-colors ${annual ? "text-[#edeae3]" : "text-[#edeae3]/40"}`}>
-            Annual
-            <span className="ml-2 text-xs text-[#6b8f7e] font-medium">save 2 months</span>
-          </span>
+        {/* ── Interval picker ──────────────────────────────────────────────────────────────────
+            A SEGMENTED CONTROL, not the sliding switch this replaces. That switch was a boolean —
+            two labels either side of a knob — and it could not be extended to a third interval
+            without becoming a thing that looks like a switch and does not behave like one.
+            `flex-wrap`, because three buttons carrying their savings do not fit a 375px phone in
+            one row: the in-app picker clipped its last badge for exactly this reason before it was
+            allowed to wrap. */}
+        <div className="flex flex-wrap items-center justify-center gap-1 mb-8 mt-6 mx-auto w-fit max-w-full rounded-full p-1 bg-white/5">
+          {INTERVALS.map((i) => {
+            const on = interval === i.key;
+            return (
+              <button
+                key={i.key}
+                onClick={() => setInterval(i.key)}
+                className={`px-4 py-2 rounded-full text-sm transition-colors cursor-pointer whitespace-nowrap ${
+                  on ? "bg-[#6b8f7e] text-[#0a0a0a] font-semibold" : "text-[#edeae3]/55 hover:text-[#edeae3]"
+                }`}
+              >
+                {i.label}
+                {i.saving && (
+                  <span className={`ml-2 text-xs font-medium ${on ? "text-[#0a0a0a]/70" : "text-[#6b8f7e]"}`}>
+                    {i.saving}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Cards */}
@@ -411,13 +481,47 @@ export default function Pricing() {
                   prices beside it. A quote tier that whispers reads as an afterthought; the point
                   is that "let's talk" IS the offer, sitting level with ₹999 and ₹2,499. */}
               <div>
-                <div className="flex items-end gap-1">
+                {/* ⚠️ The undiscounted price is shown STRUCK beside the real one, not implied by a
+                    percentage. "₹2,997 → ₹2,697" is a saving a reader can see without arithmetic;
+                    "10% off" alone asks them to work out what it is 10% OF. The percentage is kept
+                    as well because it is the number people compare across products — but it is
+                    derived from these two figures, so the three can never disagree. */}
+                <div className="flex items-end gap-2 flex-wrap">
+                  {!tier.quote && tier[interval] > 0 && fullPrice(tier, interval) > tier[interval] && (
+                    /* ⚠️ The strike has to READ, and at /35 with a hairline rule it did not — on a
+                       near-black card a faint number with a faint line through it is just a faint
+                       number. Two changes, and the second is the one that does the work: the figure
+                       is brighter, and the LINE is 2px in the tier's own accent, so it registers as
+                       a deliberate mark rather than as text that failed to load. Set inline because
+                       the colour is per tier and Tailwind's JIT reads source text — a class name
+                       built from `tier.accent` would be purged and silently do nothing. */
+                    <span
+                      className="text-[#edeae3]/60 text-lg line-through mb-0.5"
+                      style={{ textDecorationColor: tier.accent, textDecorationThickness: "2px" }}
+                    >
+                      {formatPrice(fullPrice(tier, interval))}
+                    </span>
+                  )}
                   <span className="text-3xl font-black text-[#edeae3]">
-                    {tier.quote ? "Let's talk" : formatPrice(annual ? tier.annual : tier.monthly)}
+                    {tier.quote ? "Let's talk" : formatPrice(tier[interval])}
                   </span>
-                  {!tier.quote && (annual ? tier.annual : tier.monthly) > 0 && (
+                  {/* ⚠️ BEFORE the period, not after: "(+GST)" qualifies the AMOUNT, and
+                      "₹999 /mo (+GST)" reads as though the month were the thing being taxed.
+                      EVERY price here is the BASE — checkout charges base + 18%, so ₹2,697 on this
+                      page is ₹3,182.81 on the card. One faint word against a surprise at checkout.
+                      Not on the trial or a quote tier: there is no tax on nothing, and "let's talk"
+                      is not a price. */}
+                  {!tier.quote && tier[interval] > 0 && (
+                    <span className="text-[#edeae3]/35 text-xs mb-1.5">(+GST)</span>
+                  )}
+                  {!tier.quote && tier[interval] > 0 && (
                     <span className="text-[#edeae3]/55 text-sm mb-1">
-                      /{annual ? "yr" : "mo"}
+                      /{current.suffix}
+                    </span>
+                  )}
+                  {!tier.quote && discountLabel(tier, interval, tier[interval]) && (
+                    <span className="mb-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-[#6b8f7e]/15 text-[#6b8f7e]">
+                      {discountLabel(tier, interval, tier[interval])}
                     </span>
                   )}
                 </div>
