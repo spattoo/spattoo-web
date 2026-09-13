@@ -476,7 +476,17 @@ export default function Pricing() {
                     derived from these two figures, so the three can never disagree. */}
                 <div className="flex items-end gap-2 flex-wrap">
                   {!tier.quote && tier[interval] > 0 && fullPrice(tier, interval) > tier[interval] && (
-                    <span className="text-[#edeae3]/35 text-lg line-through mb-0.5">
+                    /* ⚠️ The strike has to READ, and at /35 with a hairline rule it did not — on a
+                       near-black card a faint number with a faint line through it is just a faint
+                       number. Two changes, and the second is the one that does the work: the figure
+                       is brighter, and the LINE is 2px in the tier's own accent, so it registers as
+                       a deliberate mark rather than as text that failed to load. Set inline because
+                       the colour is per tier and Tailwind's JIT reads source text — a class name
+                       built from `tier.accent` would be purged and silently do nothing. */
+                    <span
+                      className="text-[#edeae3]/60 text-lg line-through mb-0.5"
+                      style={{ textDecorationColor: tier.accent, textDecorationThickness: "2px" }}
+                    >
                       {formatPrice(fullPrice(tier, interval))}
                     </span>
                   )}
