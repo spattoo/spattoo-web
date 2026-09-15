@@ -11,7 +11,7 @@ import { makeBakerApiClient } from "../lib/bakerApi";
 import { API_BASE } from "../lib/api";
 import { setTelemetryContext } from "../lib/telemetry";
 import { bridgeCoreTelemetryToSentry } from "../lib/coreTelemetryBridge";
-import { extractLogoPalette } from "@spattoo/designer";
+import { extractLogoPalette, parseNotificationLink, withoutLinkParams } from "@spattoo/designer";
 import ShareStoreModal from "../components/ShareStoreModal";
 import PasswordChecklist from "../components/PasswordChecklist";
 import { Captcha, captchaConfigured, type CaptchaHandle } from "../components/Captcha";
@@ -57,6 +57,21 @@ export default function BakerApp() {
   const [liveSessionId] = useState(() =>
     typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("session") : null,
   );
+  // A link from outside the app — a WhatsApp template's "View Orders" button, a push opened while the
+  // app was closed — arrives as ?order=<id> or ?panel=orders. Read once and handed to the designer,
+  // which opens it the way a tap in the notification bell does. It survives signing in, because the
+  // login form is this same page. Read with the designer's own parser so the two cannot disagree.
+  const [initialLink] = useState(() =>
+    typeof window !== "undefined" && parseNotificationLink(window.location.search) ? window.location.search : null,
+  );
+  // Taken out of the address straight away, so a refresh does not open the panel again. In an effect
+  // rather than the initialiser above: React may call an initialiser twice, and the second call would
+  // find the address already cleared.
+  useEffect(() => {
+    if (!initialLink) return;
+    const { pathname, search, hash } = window.location;
+    window.history.replaceState(window.history.state, "", withoutLinkParams(pathname, search, hash));
+  }, [initialLink]);
 
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
@@ -250,7 +265,7 @@ export default function BakerApp() {
   // baker profile/settings/catalog via the apiClient (orderMode defaults to 'baker').
   return (
     <>
-      <CakeDesigner apiClient={api} supabase={supabase} cfAssetsBase={process.env.NEXT_PUBLIC_ASSETS_BASE} onShareStore={(opts?: { justPublished?: boolean }) => setShareStore(opts ?? {})} liveSessionId={liveSessionId} onSaveTemplate={saveTemplate} legalBase={MARKETING_URL} />
+      <CakeDesigner apiClient={api} supabase={supabase} cfAssetsBase={process.env.NEXT_PUBLIC_ASSETS_BASE} onShareStore={(opts?: { justPublished?: boolean }) => setShareStore(opts ?? {})} liveSessionId={liveSessionId} initialLink={initialLink} onSaveTemplate={saveTemplate} legalBase={MARKETING_URL} />
       {/* Asked once shortly after sign-in, then not again for a week. Positions itself (a centred
           card over a scrim) and renders NOTHING when push is unavailable, already granted, or
           already declined — so it is inert for every baker who has answered it. */}
