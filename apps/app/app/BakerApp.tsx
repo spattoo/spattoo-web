@@ -985,6 +985,12 @@ function BakerSignup({
             </label>
           </div>
           {phoneInvalid && <p className="-mt-2 text-xs font-semibold text-[#ef9a9a]">Enter a valid phone number.</p>}
+          {/* Tells the baker, where they give the number, that Spattoo will message it — the opt-in WhatsApp
+              expects for account messages (welcome, new orders, plan). Promotions would need a separate,
+              unticked opt-in; this line does not cover them. */}
+          <p className="-mt-2 text-xs text-[#edeae3]/55">
+            We&apos;ll send your account and order updates to this number on WhatsApp and SMS.
+          </p>
 
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-[#edeae3]/70">Email</span>

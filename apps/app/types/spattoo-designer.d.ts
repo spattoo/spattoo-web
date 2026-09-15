@@ -28,7 +28,7 @@ declare module "@spattoo/designer" {
   // designer's notification bell reads it — null when the link names nothing the app knows.
   export function parseNotificationLink(
     link: string | null | undefined
-  ): { open: "orders"; orderId: string | null } | { open: "billing"; orderId: null } | null;
+  ): { open: "orders"; orderId: string | null } | { open: "billing" | "templates"; orderId: null } | null;
   // The page address with ?order= / ?panel= removed and everything else (?session=, the hash) kept.
   export function withoutLinkParams(pathname: string, search?: string, hash?: string): string;
 }
