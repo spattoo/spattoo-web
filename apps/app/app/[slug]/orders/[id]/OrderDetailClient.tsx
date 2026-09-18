@@ -44,8 +44,12 @@ type Order = {
   created_at: string;
 };
 
-type Baker = { name?: string; whatsapp?: string | null; phone?: string | null };
-type StorefrontSettings = { bakerName?: string; primary?: string; channels?: string[] };
+type Baker = { name?: string; primary_color?: string; whatsapp?: string | null; phone?: string | null };
+/* ⚠️ THE NAME AND COLOUR ARE NOT IN /settings. It carries delivery, store_hours, lead_time_days,
+   otp_required and otp_channels — and nothing else. They come from /storefront/:slug, which this page
+   already fetches for the baker card. And the channels field is `otp_channels`, not `channels`.
+   Checked against the live dev storefront 31-bakers, 2026-09-18. */
+type StorefrontSettings = { otp_channels?: string[]; otp_required?: boolean };
 
 // Loaded the same way the designer's gate loads it — client-only, from the vendored core.
 const VerifyStep = dynamic(
@@ -109,6 +113,11 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
     api.fetchBakerSettings()
       .then((s: unknown) => setSettings((s ?? {}) as StorefrontSettings))
       .catch(() => setSettings({}));   // a failed read must not strand the gate
+    // The name and colour the gate shows. PUBLIC, so it works before there is a session — which is
+    // the whole point here, since the gate is what a customer meets before they have one.
+    api.fetchBakerProfile()
+      .then((r: { baker: Baker }) => setBaker(r?.baker ?? null))
+      .catch(() => {});
   }, [authed, settings, api]);
 
   useEffect(() => {
@@ -155,10 +164,14 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
       <VerifyStep
         apiBaseUrl={process.env.NEXT_PUBLIC_API_URL}
         slug={slug}
-        bakerName={settings?.bakerName}
+        bakerName={baker?.name}
         captchaSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-        primary={settings?.primary}
-        channels={settings?.channels ?? ["sms"]}
+        primary={baker?.primary_color}
+        /* ⚠️ `otp_channels`, and the server's ORDER is its preference. Reading the wrong key meant
+           falling back to ["sms"] for every baker — including 31-bakers, whose server accepts email
+           ONLY. Offering a channel the server will refuse is how somebody waits for a code that was
+           never sent, which is exactly what core's VerifyStep warns about. */
+        channels={settings?.otp_channels ?? ["email"]}
         onVerified={async (session: { access_token: string; refresh_token: string } | null) => {
           if (!session) return;
           await supabase.auth.setSession({
