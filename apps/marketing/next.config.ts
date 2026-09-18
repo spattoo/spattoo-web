@@ -33,9 +33,20 @@ const nextConfig: NextConfig = {
   // database credentials and no API client; adding either, for one redirect, buys a
   // new env var, a new failure mode and a network hop.
   async rewrites() {
-    const api = process.env.NEXT_PUBLIC_API_URL;
-    // No API configured (a preview build, a local run) — serve nothing rather than
-    // rewriting to `undefined/o/...`, which 404s in a way nobody can read.
+    // ⚠️ DERIVED FROM THE BASE DOMAIN, not from NEXT_PUBLIC_API_URL alone. That variable is set on the
+    // baker app and NOT on marketing — this site has always built its own API URL from the base
+    // domain (lib/domain.ts: `https://api.${BASE_DOMAIN}`, exactly as it builds APP_URL). The first
+    // version of this rewrite required NEXT_PUBLIC_API_URL and returned [] without it, so on every
+    // real marketing deploy it would have quietly registered nothing and `/o/*` would have 404'd —
+    // every button in every customer message dead, with no error anywhere.
+    //
+    // Same precedence as shared/securityHeaders.mjs, which derives the API origin for connect-src the
+    // same way and for the same reason: mirroring the derivation is what stops the two drifting. That
+    // module records the identical bug — the CSP not knowing the host the demo form posted to.
+    const base = process.env.NEXT_PUBLIC_BASE_DOMAIN;
+    const api = process.env.NEXT_PUBLIC_API_URL ?? (base ? `https://api.${base}` : null);
+    // Neither set — a local run with no environment. Register nothing rather than rewriting to
+    // `null/o/...`, which fails in a way nobody can read.
     if (!api) return [];
     return [{ source: "/o/:orderId", destination: `${api.replace(/\/+$/, "")}/o/:orderId` }];
   },
