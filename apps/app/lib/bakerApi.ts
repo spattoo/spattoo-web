@@ -574,6 +574,16 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
     // a ledger grows at the top, so an offset page shifts under the reader between "load more"s.
     fetchMessageHistory: (before?: string | null) =>
       authGet(`/api/baker/message-history${before ? `?before=${encodeURIComponent(before)}` : ""}`),
+    // Opens a Razorpay ORDER for a message pack (a one-time payment, never a subscription). Returns
+    // { key_id, order_id, amount, messages, … } for Checkout.
+    //
+    // ⚠️ Messages are minted by the payment WEBHOOK, never by this call — so a Checkout the baker
+    // abandons costs nothing and credits nothing. Same rule as credit packs, and the same reason.
+    purchaseMessages: (packKey: string) =>
+      authFetch("/api/baker/message-packs/purchase", {
+        method: "POST",
+        body: JSON.stringify({ packKey }),
+      }),
 
     // ── AI credits (the metered "smart tools" allowance) ──────────────────────
     // Returns the raw balance AND `actions` — each metered job with how many of it the baker can
