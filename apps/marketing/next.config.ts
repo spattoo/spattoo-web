@@ -43,11 +43,20 @@ const nextConfig: NextConfig = {
     // Same precedence as shared/securityHeaders.mjs, which derives the API origin for connect-src the
     // same way and for the same reason: mirroring the derivation is what stops the two drifting. That
     // module records the identical bug — the CSP not knowing the host the demo form posted to.
-    const base = process.env.NEXT_PUBLIC_BASE_DOMAIN;
-    const api = process.env.NEXT_PUBLIC_API_URL ?? (base ? `https://api.${base}` : null);
-    // Neither set — a local run with no environment. Register nothing rather than rewriting to
-    // `null/o/...`, which fails in a way nobody can read.
-    if (!api) return [];
+    //
+    // ⚠️ THE `|| "spattoo.com"` IS THE IMPORTANT PART, and it is copied from lib/domain.ts, which
+    // chose it for this exact reason: "defaults to prod so an unset prod build is safe". This rewrite
+    // is the ONLY thing standing between an approved WhatsApp button and a 404 — the templates carry
+    // `https://www.spattoo.com/o/{{1}}`, approved at Meta and not editable — so a build that
+    // registered NO rewrite would break every customer link in every message, with nothing in any log
+    // to find it by. Returning [] on an unset variable was exactly that trap.
+    //
+    // ⚠️ AND THIS DEPLOY IS LOAD-BEARING FOR CUSTOMER LINKS. www.spattoo.com is served by THIS Vercel
+    // project (DNS is on Vercel, so there is no edge rule that could bypass it), and the approved
+    // button base cannot be moved without re-approving all three templates. Treat a marketing deploy
+    // as touching customer messaging, not just the website.
+    const base = process.env.NEXT_PUBLIC_BASE_DOMAIN || "spattoo.com";
+    const api = process.env.NEXT_PUBLIC_API_URL || `https://api.${base}`;
     return [{ source: "/o/:orderId", destination: `${api.replace(/\/+$/, "")}/o/:orderId` }];
   },
 };
