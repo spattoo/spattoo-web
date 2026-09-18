@@ -554,6 +554,27 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
     fetchEntitlements: () => authGet("/api/baker/entitlements"),
     fetchBillingPeriods: () => authGet("/api/billing/periods"),
 
+    // ── Customer updates (paid SMS / WhatsApp to a baker's customers) ─────────
+    // One call for the whole Settings section: balance, which messages the baker chose, the recharge
+    // packs with their tax breakup, recent usage, and the message CATALOGUE — each event's real body
+    // text with the baker's own bakery name already substituted.
+    //
+    // ⚠️ The preview text comes from the SERVER, never from a copy in the client. It has to match the
+    // template Meta approved, and a second copy in the browser would drift the first time one is
+    // reworded — leaving a baker deciding to pay based on words their customer never receives.
+    fetchMessageBalance: () => authGet("/api/baker/message-balance"),
+    // Which customer notifications go on a PAID channel. Everything not listed still goes by email
+    // and push, which cost nothing — so an empty array is a valid, complete answer, not a broken save.
+    saveMessageSettings: (enabledTypes: string[]) =>
+      authFetch("/api/baker/message-settings", {
+        method: "PUT",
+        body: JSON.stringify({ enabledTypes }),
+      }),
+    // Every message that went out, newest first. Keyset paged on `before` like the credit history:
+    // a ledger grows at the top, so an offset page shifts under the reader between "load more"s.
+    fetchMessageHistory: (before?: string | null) =>
+      authGet(`/api/baker/message-history${before ? `?before=${encodeURIComponent(before)}` : ""}`),
+
     // ── AI credits (the metered "smart tools" allowance) ──────────────────────
     // Returns the raw balance AND `actions` — each metered job with how many of it the baker can
     // still run. Use the COUNTS, not the credits: the prices live in the credit_costs table so they
