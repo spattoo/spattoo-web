@@ -172,6 +172,11 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
            ONLY. Offering a channel the server will refuse is how somebody waits for a code that was
            never sent, which is exactly what core's VerifyStep warns about. */
         channels={settings?.otp_channels ?? ["email"]}
+        /* This door is not the enquiry. Nothing is sent to the baker here — the customer came
+           from a WhatsApp link and is proving the address is theirs so the order will render. And
+           `onBack` lands on the shop front, so "Back to my cake" names a place they were never at. */
+        submitLabel="View my order"
+        backLabel={`Go to ${baker?.name ?? "the bakery"}`}
         onVerified={async (session: { access_token: string; refresh_token: string } | null) => {
           if (!session) return;
           await supabase.auth.setSession({
@@ -197,6 +202,7 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
   const waDigits = (baker?.whatsapp ?? "").replace(/[^\d]/g, "");
 
   return (
+    <div style={S.surface}>
     <main style={S.page}>
       <p style={S.eyebrow}>{order.baker_name ?? "Your baker"}</p>
       <h1 style={S.h1}>Your quote</h1>
@@ -252,7 +258,7 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
       <Section title="Delivery">
         <Row label="Mode" value={order.delivery_mode === "home_delivery" ? "Home delivery" : "Pickup"} />
         {order.delivery_date && <Row label="Date" value={fmtDate(order.delivery_date)} />}
-        {order.delivery_time && <Row label="Time" value={order.delivery_time} />}
+        {order.delivery_time && <Row label="Time" value={fmtTime(order.delivery_time)} />}
         {order.delivery_address && <Row label="Address" value={order.delivery_address} />}
       </Section>
 
@@ -296,6 +302,7 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
 
       {error && <p style={S.err}>{error}</p>}
     </main>
+    </div>
   );
 }
 
@@ -319,7 +326,26 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   );
 }
 function Centered({ children }: { children: React.ReactNode }) {
-  return <div style={{ ...S.page, minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#777", textAlign: "center" }}>{children}</div>;
+  return (
+    <div style={S.surface}>
+      <div style={{ ...S.page, minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#777", textAlign: "center" }}>{children}</div>
+    </div>
+  );
+}
+/* Postgres hands back a `time` as "12:00:00", and this went onto the customer's page verbatim —
+   sitting directly under a date that had been carefully written out as "16 September 2026". Seconds
+   are noise on a cake collection and nobody writes a pickup time that way.
+   No date part to attach, so it is parsed by hand rather than through Date(); an unparseable value
+   is shown as it came rather than dropped, because a wrong-looking time still tells the customer
+   more than a missing row. */
+function fmtTime(s: string) {
+  const m = /^(\d{1,2}):(\d{2})/.exec(s);
+  if (!m) return s;
+  const h = Number(m[1]);
+  if (!Number.isFinite(h) || h > 23) return s;
+  const suffix = h < 12 ? "am" : "pm";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m[2]} ${suffix}`;
 }
 function fmtDate(s: string) {
   try { return new Date(s).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }); }
@@ -327,6 +353,17 @@ function fmtDate(s: string) {
 }
 
 const S: Record<string, React.CSSProperties> = {
+  /* ⚠️ THIS PAGE IS LIT FOR PAPER AND THE APP'S BODY IS BLACK. Every colour below assumes a light
+     ground — #2A2024 body text, #2C4433 headings, #888 labels, cards on #F6F4EF — but apps/app
+     globals.css sets `body { background: #111111 }` deliberately, "so the redirect into the app +
+     the loading state never flash white", and says full-screen surfaces must draw their own
+     background over it. This one did not, so "Your quote", the weight, the flavour and the delivery
+     date all rendered near-black on near-black.
+     Seen 2026-09-18, the first time anybody verified and actually LOOKED at the order. It is the
+     destination of the customer WhatsApp link, so it was the worst page in the product to have it.
+     Full-bleed, not on `page` itself: `page` is a 560px centred column, so painting it there would
+     leave black gutters either side on a desktop. Same defect as core's VerifyStep wrap. */
+  surface: { background: "#FFFFFF", minHeight: "100vh" },
   page: { fontFamily: "sans-serif", maxWidth: 560, margin: "0 auto", padding: "24px 18px 48px", color: "#2A2024" },
   eyebrow: { fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: "#2C4433", margin: 0 },
   h1: { fontSize: 24, fontWeight: 800, margin: "4px 0 18px" },
