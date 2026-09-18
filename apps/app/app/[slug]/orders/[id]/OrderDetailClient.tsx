@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { getSupabase } from "../../../../lib/supabase";
 import { makeCustomerApiClient } from "../../../../lib/api";
@@ -44,10 +45,39 @@ type Order = {
 };
 
 type Baker = { name?: string; whatsapp?: string | null; phone?: string | null };
+type StorefrontSettings = { bakerName?: string; primary?: string; channels?: string[] };
+
+// Loaded the same way the designer's gate loads it — client-only, from the vendored core.
+const VerifyStep = dynamic(
+  () => import("@spattoo/designer").then((m) => m.VerifyStep),
+  { ssr: false, loading: () => <Centered>Loading…</Centered> },
+);
 
 export default function OrderDetailClient({ slug, orderId }: { slug: string; orderId: string }) {
   const supabase = getSupabase();
   const api = useMemo(() => makeCustomerApiClient(supabase, slug), [supabase, slug]);
+
+  /* ── The gate ─────────────────────────────────────────────────────────────────────────────────
+   *
+   * ⚠️ THIS PAGE IS REACHED FROM A MESSAGE, by someone with no session. A WhatsApp button opens the
+   * in-app browser, which carries nothing from any earlier visit — so "not signed in" is the NORMAL
+   * case here, not an edge one.
+   *
+   * It used to render `<Centered>{error}</Centered>` for any failure, and the failure was always the
+   * same: `GET /api/customer/orders/<id>` returns 401 `{"error":"Unauthorized"}` without a session.
+   * So a customer tapping "View quote" in their WhatsApp landed on a page showing one word —
+   * "Unauthorized" — with no way forward. Found 2026-09-18 by opening the real link in a real
+   * browser, before the templates carrying it were submitted.
+   *
+   * Nothing was ever exposed; the API refused correctly. What was broken was the experience — the
+   * same bug, and the same fix, as the designer's door (see DesignerClient's gate, and the "one
+   * exception" note in core's VerifyStep).
+   *
+   * `undefined` = still checking, and it must NOT render either branch: flashing the verify screen
+   * at somebody who is already signed in is the same bug in a nicer costume.
+   */
+  const [authed, setAuthed] = useState<boolean | undefined>(undefined);
+  const [settings, setSettings] = useState<StorefrontSettings | null>(null);
 
   const [order, setOrder] = useState<Order | null>(null);
   const [baker, setBaker] = useState<Baker | null>(null);
@@ -63,11 +93,33 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
   useEffect(() => setTelemetryContext({ surface: "customer-quote-detail", bakerSlug: slug, role: "customer" }), [slug]);
 
   useEffect(() => {
+    let live = true;
+    supabase.auth.getSession().then(({ data }) => { if (live) setAuthed(!!data.session); });
+    // A session that expires, or a sign-out in another tab, drops back to the gate rather than
+    // leaving the page running on calls that will 401.
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => { if (live) setAuthed(!!session); });
+    return () => { live = false; sub.subscription.unsubscribe(); };
+  }, [supabase]);
+
+  // Only fetched when the gate is actually going to show. Which channels the server accepts is its
+  // decision, not ours — offering SMS before DLT clearance is how somebody waits for a code a telco
+  // already dropped.
+  useEffect(() => {
+    if (authed !== false || settings) return;
+    api.fetchBakerSettings()
+      .then((s: unknown) => setSettings((s ?? {}) as StorefrontSettings))
+      .catch(() => setSettings({}));   // a failed read must not strand the gate
+  }, [authed, settings, api]);
+
+  useEffect(() => {
+    // Waits for the session rather than firing and rendering its own 401 — that race is what put the
+    // word "Unauthorized" on the screen in the first place.
+    if (!authed) return;
     let alive = true;
     api.fetchMyOrder(orderId).then((o: Order) => alive && setOrder(o)).catch((e: Error) => alive && setError(e.message));
     api.fetchBakerProfile().then((r: { baker: Baker }) => alive && setBaker(r?.baker ?? null)).catch(() => {});
     return () => { alive = false; };
-  }, [api, orderId]);
+  }, [api, orderId, authed]);
 
   async function approve() {
     setBusy(true);
@@ -94,6 +146,31 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
     } finally {
       setMsgBusy(false);
     }
+  }
+
+  if (authed === undefined) return <Centered>Loading…</Centered>;
+
+  if (!authed) {
+    return (
+      <VerifyStep
+        apiBaseUrl={process.env.NEXT_PUBLIC_API_URL}
+        slug={slug}
+        bakerName={settings?.bakerName}
+        captchaSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+        primary={settings?.primary}
+        channels={settings?.channels ?? ["sms"]}
+        onVerified={async (session: { access_token: string; refresh_token: string } | null) => {
+          if (!session) return;
+          await supabase.auth.setSession({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+          });
+          // onAuthStateChange flips `authed`, the order loads, and they land where the message was
+          // sending them — rather than being dropped at the shop front to find their way back.
+        }}
+        onBack={() => { window.location.href = `/${slug}`; }}
+      />
+    );
   }
 
   if (error && !order) return <Centered>{error}</Centered>;
