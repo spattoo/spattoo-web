@@ -50,6 +50,7 @@ type Baker = { name?: string; primary_color?: string; whatsapp?: string | null; 
    already fetches for the baker card. And the channels field is `otp_channels`, not `channels`.
    Checked against the live dev storefront 31-bakers, 2026-09-18. */
 type StorefrontSettings = { otp_channels?: string[]; otp_required?: boolean };
+type OrderChannel = { channels?: string[] };
 
 // Loaded the same way the designer's gate loads it — client-only, from the vendored core.
 const VerifyStep = dynamic(
@@ -82,6 +83,7 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
    */
   const [authed, setAuthed] = useState<boolean | undefined>(undefined);
   const [settings, setSettings] = useState<StorefrontSettings | null>(null);
+  const [orderChannel, setOrderChannel] = useState<OrderChannel | null>(null);
 
   const [order, setOrder] = useState<Order | null>(null);
   const [baker, setBaker] = useState<Baker | null>(null);
@@ -113,12 +115,22 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
     api.fetchBakerSettings()
       .then((s: unknown) => setSettings((s ?? {}) as StorefrontSettings))
       .catch(() => setSettings({}));   // a failed read must not strand the gate
+    /* ⚠️ ASK WHICH CONTACT WE HOLD, rather than offering "Email me / Text me". That choice is a
+       question only the server can answer — the order has a customer, and that customer has an
+       email, or a phone, or both — so making somebody pick is asking them to guess, and a wrong
+       guess sends a code somewhere that will never arrive.
+       Phone-only was the first idea and is wrong: 4 of 17 customers on dev have no phone at all,
+       which is the same gap migration 097 closed. A failed read falls back to the baker's channels,
+       which is exactly today's behaviour. */
+    api.fetchOrderChannel(orderId)
+      .then((r: unknown) => setOrderChannel((r ?? {}) as OrderChannel))
+      .catch(() => setOrderChannel({}));
     // The name and colour the gate shows. PUBLIC, so it works before there is a session — which is
     // the whole point here, since the gate is what a customer meets before they have one.
     api.fetchBakerProfile()
       .then((r: { baker: Baker }) => setBaker(r?.baker ?? null))
       .catch(() => {});
-  }, [authed, settings, api]);
+  }, [authed, settings, api, orderId]);
 
   useEffect(() => {
     // Waits for the session rather than firing and rendering its own 401 — that race is what put the
@@ -171,14 +183,19 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
            falling back to ["sms"] for every baker — including 31-bakers, whose server accepts email
            ONLY. Offering a channel the server will refuse is how somebody waits for a code that was
            never sent, which is exactly what core's VerifyStep warns about. */
-        channels={settings?.otp_channels ?? ["email"]}
+        channels={orderChannel?.channels ?? settings?.otp_channels ?? ["email"]}
         /* This door is not the enquiry. Nothing is sent to the baker here — the customer came
            from a WhatsApp link and is proving the address is theirs so the order will render. And
            `onBack` lands on the shop front, so "Back to my cake" names a place they were never at. */
         /* Nobody is getting in touch here either — they arrived from a message to LOOK at an order
            that already exists. The default copy would promise a call that is not coming. */
-        title="Let's check it's you"
-        lede="Your order is private, so we just need to check this reaches you."
+        title="Let's open your order"
+        lede="It's private, so we'll send you a quick code to check it's you."
+        /* ⚠️ NO NAME HERE. The field exists so a NEW customer row is not nameless — but this order
+           already has one, and the message that brought them here addressed them by it. Asking again
+           reads as not being believed, and puts a second field between somebody and the order they
+           were invited to look at. */
+        askName={false}
         submitLabel="View my order"
         backLabel={`Go to ${baker?.name ?? "the bakery"}`}
         onVerified={async (session: { access_token: string; refresh_token: string } | null) => {

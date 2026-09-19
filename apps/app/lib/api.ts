@@ -54,6 +54,13 @@ export function makeCustomerApiClient(supabase: SupabaseClient, slug: string) {
     fetchBakerSettings: () =>
       publicGet(`/api/storefront/${encodeURIComponent(slug)}/settings`),
 
+    // Which channel THIS order's customer can actually be reached on, so the gate asks for one
+    // contact instead of making somebody guess which one we hold. Returns the channel only, never
+    // the contact — and answers the baker's configured channels for an unknown order, so it cannot
+    // be used to discover whether an order id is real.
+    fetchOrderChannel: (orderId: string) =>
+      publicGet(`/api/storefront/${encodeURIComponent(slug)}/order-channel/${encodeURIComponent(orderId)}`),
+
     // ── Catalog (customer Bearer; 'design:create' grants access) ──────────────
     fetchElementTypes: () => authGet(`/api/element-types`),
     // What a decoration IS, for the browsing menu — as opposed to element-types, which is how it
