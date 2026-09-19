@@ -34,6 +34,10 @@ export default function StorefrontClient({ slug }: { slug: string }) {
       // Turnstile site key for the invite-OTP captcha (core forwards the token to /send-otp).
       // Unset → the widget is a no-op. Secret lives only in the Supabase dashboard.
       captchaSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+      // The self-hosted HDRI every cake on this page is lit by. Without it core falls back to a
+      // drei preset — a 1.4 MB fetch from GitHub raw, a different environment from the designer,
+      // and a silent break the day CSP is enforced. Same value the designer page passes.
+      cfAssetsBase={process.env.NEXT_PUBLIC_ASSETS_BASE}
       // After OTP login (session is set), or a browse "start designing", go to the
       // designer on this same origin. If the baker attached a starting design to the
       // invite, core hands it here — stash it so the designer seeds from it on arrival.
