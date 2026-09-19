@@ -131,8 +131,17 @@ export default function DesignerClient({ slug }: { slug: string }) {
            somebody ends up wondering whether "add decorations" and "browse elements" are different
            jobs. If these and the tour ever disagree, the one that moved is wrong.
            Signing in here buys four stages of work and none of them is visible from outside the
-           door, which is the whole reason the door has to say what it is for. */
-        steps={["Sign in", "Pick a shape", "Decorate", "Ask a price"]}
+           door, which is the whole reason the door has to say what it is for.
+           ⚠️ AND THEY ARE THE PRODUCT'S OWN WORDS, not nicer synonyms: the designer's rail says
+           **Decorations** (CakeDesigner.jsx:2795) and the submit button says **Request quote**
+           (OrderModal.jsx:697). Sandeep: "i deliberatly want the word decorations so the user after
+           logging in can easily map the menu item decorations." Somebody crosses this door and then
+           has to FIND these things. */
+        steps={["Sign in", "Choose a cake shape", "Add decorations", "Request quote"]}
+        /* ⚠️ "Back to my cake" NAMED A PLACE THEY HAVE NEVER BEEN. `onBack` pushes `/${slug}` — the
+           shop front — and nobody arriving at this door has a cake yet. The default copy was written
+           for the enquiry, where there IS a cake on the screen behind it. */
+        backLabel="Home"
         /* ⚠️ Same two bugs as the order page's gate, and they were HERE first — this is where that
            gate was copied from. /storefront/:slug/settings carries neither `bakerName` nor `primary`
            nor `channels`: it has otp_channels, otp_required, delivery, store_hours, lead_time_days.
