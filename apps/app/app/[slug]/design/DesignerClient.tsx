@@ -124,6 +124,15 @@ export default function DesignerClient({ slug }: { slug: string }) {
         standalone
         logoUrl={gateBaker?.logo_transparent_url || gateBaker?.logo_url || null}
         eyebrow="Cake designer"
+        /* ⚠️ THE SAME WORDS `DesignTour` USES, one screen later. Its three titles are "Start with the
+           cake", "Add decorations" and "Then ask for a price"; these are the short forms of exactly
+           those, in the same order. The customer meets this map, signs in, and is met by the tour
+           saying the same things about the same stages — two vocabularies for one journey is how
+           somebody ends up wondering whether "add decorations" and "browse elements" are different
+           jobs. If these and the tour ever disagree, the one that moved is wrong.
+           Signing in here buys four stages of work and none of them is visible from outside the
+           door, which is the whole reason the door has to say what it is for. */
+        steps={["Sign in", "Pick a shape", "Decorate", "Ask a price"]}
         /* ⚠️ Same two bugs as the order page's gate, and they were HERE first — this is where that
            gate was copied from. /storefront/:slug/settings carries neither `bakerName` nor `primary`
            nor `channels`: it has otp_channels, otp_required, delivery, store_hours, lead_time_days.
