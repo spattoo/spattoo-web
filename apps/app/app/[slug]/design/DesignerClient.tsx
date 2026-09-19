@@ -139,7 +139,18 @@ export default function DesignerClient({ slug }: { slug: string }) {
            So this door has been reading undefined for both, showing "Who shall undefined ask for?",
            and falling back to ["sms"] for bakers whose server accepts email only. Found 2026-09-18
            against the live 31-bakers storefront while testing the order link. */
-        channels={settings?.otp_channels ?? ["email"]}
+        /* ⚠️ PHONE FIRST, AND ALONE WHERE THE SERVER CAN SEND ONE. India runs on phone numbers, not
+           email: an Android owner has a Gmail address and does not read it. Sandeep, 2026-09-19:
+           "i hav setup android phone for my father. who can login with phone otp, but not very good
+           at email." Offering both made email the default here (the server lists it first), and the
+           measured cost is in the customers table — of 6 storefront enquiries, 4 have NO PHONE, so
+           the baker's next action on two thirds of them, which is to telephone, is impossible.
+           ⚠️ Still intersected with what the SERVER will accept. Hardcoding ["sms"] on a deployment
+           without SMS is how somebody waits for a code a telco already scrubbed — so this prefers
+           phone and falls back to whatever that storefront can actually deliver.
+           The email is not abandoned, it is DEFERRED: it is asked for at the quote, where the
+           customer wants to be reachable, rather than at a door they have not chosen to enter yet. */
+        channels={settings?.otp_channels?.includes("sms") ? ["sms"] : settings?.otp_channels ?? ["email"]}
         /* ⚠️ NOBODY IS GETTING IN TOUCH YET. The default copy — "${baker} will be in touch about your
            cake" — is true at enquiry SUBMIT and false here: nothing has been sent, there is no cake
            yet, and the visitor came to build one. This door asks only because the designer cannot
