@@ -128,6 +128,12 @@ export function makeCustomerApiClient(supabase: SupabaseClient, slug: string) {
     fetchMyOrders: () =>
       authFetch(`/api/customer/orders?bakerSlug=${encodeURIComponent(slug)}`),
     fetchMyOrder: (id: string) => authFetch(`/api/customer/orders/${id}`),
+
+    // What this bakery already holds for the signed-in customer, so the quote form only asks for an
+    // email when there is none. Booleans, never the contacts themselves — the form's question is
+    // "do I render a field", and a stolen token should not read back an address to answer it.
+    fetchCustomerProfile: (bakerSlug: string) =>
+      authFetch(`/api/customer/profile?bakerSlug=${encodeURIComponent(bakerSlug)}`),
     acceptQuote: (id: string) =>
       authFetch(`/api/customer/orders/${id}/accept`, { method: "POST" }),
     declineQuote: (id: string) =>
