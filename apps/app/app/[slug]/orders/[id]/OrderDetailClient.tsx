@@ -175,6 +175,10 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
         /* This door is not the enquiry. Nothing is sent to the baker here — the customer came
            from a WhatsApp link and is proving the address is theirs so the order will render. And
            `onBack` lands on the shop front, so "Back to my cake" names a place they were never at. */
+        /* Nobody is getting in touch here either — they arrived from a message to LOOK at an order
+           that already exists. The default copy would promise a call that is not coming. */
+        title="Let's check it's you"
+        lede="Your order is private, so we just need to check this reaches you."
         submitLabel="View my order"
         backLabel={`Go to ${baker?.name ?? "the bakery"}`}
         onVerified={async (session: { access_token: string; refresh_token: string } | null) => {

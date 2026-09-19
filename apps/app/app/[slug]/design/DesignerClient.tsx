@@ -119,6 +119,15 @@ export default function DesignerClient({ slug }: { slug: string }) {
            and falling back to ["sms"] for bakers whose server accepts email only. Found 2026-09-18
            against the live 31-bakers storefront while testing the order link. */
         channels={settings?.otp_channels ?? ["email"]}
+        /* ⚠️ NOBODY IS GETTING IN TOUCH YET. The default copy — "${baker} will be in touch about your
+           cake" — is true at enquiry SUBMIT and false here: nothing has been sent, there is no cake
+           yet, and the visitor came to build one. This door asks only because the designer cannot
+           work without a session; every catalogue route behind it 401s. Promising a call to open a
+           tool commits the baker to something nobody asked them about.
+           Sandeep, 2026-09-19: "i came here to design the cake and the cake design is not ready yet." */
+        title="Who's designing?"
+        lede={`We just need to know who you are before you start. ${gateBaker?.name ?? "The bakery"} only sees your cake when you choose to send it.`}
+        submitLabel="Start designing"
         onVerified={async (session: { access_token: string; refresh_token: string } | null) => {
           if (!session) return;
           await supabase.auth.setSession({
