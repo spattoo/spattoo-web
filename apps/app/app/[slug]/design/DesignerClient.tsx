@@ -75,7 +75,11 @@ export default function DesignerClient({ slug }: { slug: string }) {
   // for a moment to somebody who is already signed in is the same bug in a nicer costume.
   const [authed, setAuthed] = useState<boolean | undefined>(undefined);
   const [settings, setSettings] = useState<StorefrontSettings | null>(null);
-  const [gateBaker, setGateBaker] = useState<{ name?: string; primary_color?: string } | null>(null);
+  /* logo_transparent_url first: it is the background-removed mark, so it floats on the gate's
+     tinted ground instead of sitting in its own white rectangle. Same order the storefront uses. */
+  const [gateBaker, setGateBaker] = useState<
+    { name?: string; primary_color?: string; logo_url?: string | null; logo_transparent_url?: string | null }
+  | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -96,7 +100,7 @@ export default function DesignerClient({ slug }: { slug: string }) {
       .catch(() => setSettings({}));   // a failed read must not strand the gate — VerifyStep has its own defaults
     // The name and colour the gate shows. Public, so it resolves before there is a session.
     apiClient.fetchBakerProfile()
-      .then((r: { baker: { name?: string; primary_color?: string } }) => setGateBaker(r?.baker ?? null))
+      .then((r: { baker: NonNullable<typeof gateBaker> }) => setGateBaker(r?.baker ?? null))
       .catch(() => {});
   }, [authed, settings, apiClient]);
 
@@ -112,6 +116,14 @@ export default function DesignerClient({ slug }: { slug: string }) {
         bakerName={gateBaker?.name}
         captchaSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
         primary={gateBaker?.primary_color}
+        /* ⚠️ THIS SCREEN IS THE WHOLE PAGE, and saying so is what gives it a background: without
+           `standalone` the gate renders its in-sheet shape, which has no ground and no height, on
+           top of globals.css's `body { background: #111111 }`. That was the 2026-09-18 bug.
+           It is also what puts the bakery's mark, colour and card on it — the door somebody meets
+           before they have ever seen the shop should look like the shop. */
+        standalone
+        logoUrl={gateBaker?.logo_transparent_url || gateBaker?.logo_url || null}
+        eyebrow="Cake designer"
         /* ⚠️ Same two bugs as the order page's gate, and they were HERE first — this is where that
            gate was copied from. /storefront/:slug/settings carries neither `bakerName` nor `primary`
            nor `channels`: it has otp_channels, otp_required, delivery, store_hours, lead_time_days.

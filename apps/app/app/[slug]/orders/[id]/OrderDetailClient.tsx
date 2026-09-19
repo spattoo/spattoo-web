@@ -44,7 +44,10 @@ type Order = {
   created_at: string;
 };
 
-type Baker = { name?: string; primary_color?: string; whatsapp?: string | null; phone?: string | null };
+/* logo_transparent_url first: it is the background-removed mark, so it floats on the gate's
+   tinted ground instead of sitting in its own white rectangle. Same order the storefront uses. */
+type Baker = { name?: string; primary_color?: string; whatsapp?: string | null; phone?: string | null;
+               logo_url?: string | null; logo_transparent_url?: string | null };
 /* ⚠️ THE NAME AND COLOUR ARE NOT IN /settings. It carries delivery, store_hours, lead_time_days,
    otp_required and otp_channels — and nothing else. They come from /storefront/:slug, which this page
    already fetches for the baker card. And the channels field is `otp_channels`, not `channels`.
@@ -179,6 +182,16 @@ export default function OrderDetailClient({ slug, orderId }: { slug: string; ord
         bakerName={baker?.name}
         captchaSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
         primary={baker?.primary_color}
+        /* ⚠️ THIS SCREEN IS THE WHOLE PAGE, and saying so is what gives it a background: without
+           `standalone` the gate renders its in-sheet shape, which has no ground and no height, on
+           top of globals.css's `body { background: #111111 }`. That was the 2026-09-18 bug.
+           It is also what puts the bakery's mark, colour and card on it. This door in particular is
+           reached by tapping a button in a WhatsApp message the bakery paid to send — arriving at an
+           unbranded white form is the point where somebody wonders whether they followed a real link.
+           Sandeep, 2026-09-19: "over all, this login screen is very boring." */
+        standalone
+        logoUrl={baker?.logo_transparent_url || baker?.logo_url || null}
+        eyebrow="Your order"
         /* ⚠️ `otp_channels`, and the server's ORDER is its preference. Reading the wrong key meant
            falling back to ["sms"] for every baker — including 31-bakers, whose server accepts email
            ONLY. Offering a channel the server will refuse is how somebody waits for a code that was
