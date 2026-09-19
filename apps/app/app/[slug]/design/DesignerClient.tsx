@@ -37,7 +37,10 @@ const VerifyStep = dynamic(
 // (/[slug]/quote-sent), which closes the loop and shows the share design.
 // Only the fields the gate reads. `channels` in particular is the SERVER's decision, in its order of
 // preference — offering SMS before DLT clearance is how somebody waits for a code a telco dropped.
-type StorefrontSettings = { bakerName?: string; channels?: string[]; primary?: string };
+/* ⚠️ What /storefront/:slug/settings ACTUALLY returns. It never carried `bakerName`, `channels` or
+   `primary` — those were invented here and have been undefined ever since. The name and colour live
+   on /storefront/:slug; the channels key is `otp_channels`. */
+type StorefrontSettings = { otp_channels?: string[]; otp_required?: boolean };
 
 export default function DesignerClient({ slug }: { slug: string }) {
   const supabase = getSupabase();
@@ -72,6 +75,7 @@ export default function DesignerClient({ slug }: { slug: string }) {
   // for a moment to somebody who is already signed in is the same bug in a nicer costume.
   const [authed, setAuthed] = useState<boolean | undefined>(undefined);
   const [settings, setSettings] = useState<StorefrontSettings | null>(null);
+  const [gateBaker, setGateBaker] = useState<{ name?: string; primary_color?: string } | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -90,6 +94,10 @@ export default function DesignerClient({ slug }: { slug: string }) {
     apiClient.fetchBakerSettings()
       .then((s: unknown) => setSettings((s ?? {}) as StorefrontSettings))
       .catch(() => setSettings({}));   // a failed read must not strand the gate — VerifyStep has its own defaults
+    // The name and colour the gate shows. Public, so it resolves before there is a session.
+    apiClient.fetchBakerProfile()
+      .then((r: { baker: { name?: string; primary_color?: string } }) => setGateBaker(r?.baker ?? null))
+      .catch(() => {});
   }, [authed, settings, apiClient]);
 
   if (authed === undefined) {
@@ -101,10 +109,27 @@ export default function DesignerClient({ slug }: { slug: string }) {
       <VerifyStep
         apiBaseUrl={process.env.NEXT_PUBLIC_API_URL}
         slug={slug}
-        bakerName={settings?.bakerName}
+        bakerName={gateBaker?.name}
         captchaSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-        primary={settings?.primary}
-        channels={settings?.channels ?? ["sms"]}
+        primary={gateBaker?.primary_color}
+        /* ⚠️ Same two bugs as the order page's gate, and they were HERE first — this is where that
+           gate was copied from. /storefront/:slug/settings carries neither `bakerName` nor `primary`
+           nor `channels`: it has otp_channels, otp_required, delivery, store_hours, lead_time_days.
+           So this door has been reading undefined for both, showing "Who shall undefined ask for?",
+           and falling back to ["sms"] for bakers whose server accepts email only. Found 2026-09-18
+           against the live 31-bakers storefront while testing the order link. */
+        channels={settings?.otp_channels ?? ["email"]}
+        /* ⚠️ NOBODY IS GETTING IN TOUCH YET. The default copy — "${baker} will be in touch about your
+           cake" — is true at enquiry SUBMIT and false here: nothing has been sent, there is no cake
+           yet, and the visitor came to build one. This door asks only because the designer cannot
+           work without a session; every catalogue route behind it 401s. Promising a call to open a
+           tool commits the baker to something nobody asked them about.
+           Sandeep, 2026-09-19: "i came here to design the cake and the cake design is not ready yet." */
+        title="Almost there — let's design your cake"
+        /* "code", not "OTP": the very next screen says "Enter the code" and "We sent a 6-digit code
+           to…". Two words for one thing across two screens is the avoidable half of the jargon. */
+        lede="A quick code to open the designer. We only see your cake when you choose to send it."
+        submitLabel="Start designing"
         onVerified={async (session: { access_token: string; refresh_token: string } | null) => {
           if (!session) return;
           await supabase.auth.setSession({
