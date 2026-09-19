@@ -125,8 +125,10 @@ export default function DesignerClient({ slug }: { slug: string }) {
            work without a session; every catalogue route behind it 401s. Promising a call to open a
            tool commits the baker to something nobody asked them about.
            Sandeep, 2026-09-19: "i came here to design the cake and the cake design is not ready yet." */
-        title="Who's designing?"
-        lede={`We just need to know who you are before you start. ${gateBaker?.name ?? "The bakery"} only sees your cake when you choose to send it.`}
+        title="Almost there — let's design your cake"
+        /* "code", not "OTP": the very next screen says "Enter the code" and "We sent a 6-digit code
+           to…". Two words for one thing across two screens is the avoidable half of the jargon. */
+        lede="A quick code to open the designer. We only see your cake when you choose to send it."
         submitLabel="Start designing"
         onVerified={async (session: { access_token: string; refresh_token: string } | null) => {
           if (!session) return;
