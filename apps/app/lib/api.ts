@@ -54,6 +54,13 @@ export function makeCustomerApiClient(supabase: SupabaseClient, slug: string) {
     fetchBakerSettings: () =>
       publicGet(`/api/storefront/${encodeURIComponent(slug)}/settings`),
 
+    // Which channel THIS order's customer can actually be reached on, so the gate asks for one
+    // contact instead of making somebody guess which one we hold. Returns the channel only, never
+    // the contact — and answers the baker's configured channels for an unknown order, so it cannot
+    // be used to discover whether an order id is real.
+    fetchOrderChannel: (orderId: string) =>
+      publicGet(`/api/storefront/${encodeURIComponent(slug)}/order-channel/${encodeURIComponent(orderId)}`),
+
     // ── Catalog (customer Bearer; 'design:create' grants access) ──────────────
     fetchElementTypes: () => authGet(`/api/element-types`),
     // What a decoration IS, for the browsing menu — as opposed to element-types, which is how it
@@ -121,6 +128,12 @@ export function makeCustomerApiClient(supabase: SupabaseClient, slug: string) {
     fetchMyOrders: () =>
       authFetch(`/api/customer/orders?bakerSlug=${encodeURIComponent(slug)}`),
     fetchMyOrder: (id: string) => authFetch(`/api/customer/orders/${id}`),
+
+    // What this bakery already holds for the signed-in customer, so the quote form only asks for an
+    // email when there is none. Booleans, never the contacts themselves — the form's question is
+    // "do I render a field", and a stolen token should not read back an address to answer it.
+    fetchCustomerProfile: (bakerSlug: string) =>
+      authFetch(`/api/customer/profile?bakerSlug=${encodeURIComponent(bakerSlug)}`),
     acceptQuote: (id: string) =>
       authFetch(`/api/customer/orders/${id}/accept`, { method: "POST" }),
     declineQuote: (id: string) =>

@@ -75,7 +75,11 @@ export default function DesignerClient({ slug }: { slug: string }) {
   // for a moment to somebody who is already signed in is the same bug in a nicer costume.
   const [authed, setAuthed] = useState<boolean | undefined>(undefined);
   const [settings, setSettings] = useState<StorefrontSettings | null>(null);
-  const [gateBaker, setGateBaker] = useState<{ name?: string; primary_color?: string } | null>(null);
+  /* logo_transparent_url first: it is the background-removed mark, so it floats on the gate's
+     tinted ground instead of sitting in its own white rectangle. Same order the storefront uses. */
+  const [gateBaker, setGateBaker] = useState<
+    { name?: string; primary_color?: string; logo_url?: string | null; logo_transparent_url?: string | null }
+  | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -96,7 +100,7 @@ export default function DesignerClient({ slug }: { slug: string }) {
       .catch(() => setSettings({}));   // a failed read must not strand the gate — VerifyStep has its own defaults
     // The name and colour the gate shows. Public, so it resolves before there is a session.
     apiClient.fetchBakerProfile()
-      .then((r: { baker: { name?: string; primary_color?: string } }) => setGateBaker(r?.baker ?? null))
+      .then((r: { baker: NonNullable<typeof gateBaker> }) => setGateBaker(r?.baker ?? null))
       .catch(() => {});
   }, [authed, settings, apiClient]);
 
@@ -112,13 +116,50 @@ export default function DesignerClient({ slug }: { slug: string }) {
         bakerName={gateBaker?.name}
         captchaSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
         primary={gateBaker?.primary_color}
+        /* ⚠️ THIS SCREEN IS THE WHOLE PAGE, and saying so is what gives it a background: without
+           `standalone` the gate renders its in-sheet shape, which has no ground and no height, on
+           top of globals.css's `body { background: #111111 }`. That was the 2026-09-18 bug.
+           It is also what puts the bakery's mark, colour and card on it — the door somebody meets
+           before they have ever seen the shop should look like the shop. */
+        standalone
+        logoUrl={gateBaker?.logo_transparent_url || gateBaker?.logo_url || null}
+        eyebrow="Cake designer"
+        /* ⚠️ THE SAME WORDS `DesignTour` USES, one screen later. Its three titles are "Start with the
+           cake", "Add decorations" and "Then ask for a price"; these are the short forms of exactly
+           those, in the same order. The customer meets this map, signs in, and is met by the tour
+           saying the same things about the same stages — two vocabularies for one journey is how
+           somebody ends up wondering whether "add decorations" and "browse elements" are different
+           jobs. If these and the tour ever disagree, the one that moved is wrong.
+           Signing in here buys four stages of work and none of them is visible from outside the
+           door, which is the whole reason the door has to say what it is for.
+           ⚠️ AND THEY ARE THE PRODUCT'S OWN WORDS, not nicer synonyms: the designer's rail says
+           **Decorations** (CakeDesigner.jsx:2795) and the submit button says **Request quote**
+           (OrderModal.jsx:697). Sandeep: "i deliberatly want the word decorations so the user after
+           logging in can easily map the menu item decorations." Somebody crosses this door and then
+           has to FIND these things. */
+        steps={["Sign in", "Choose a cake shape", "Add decorations", "Request quote"]}
+        /* ⚠️ "Back to my cake" NAMED A PLACE THEY HAVE NEVER BEEN. `onBack` pushes `/${slug}` — the
+           shop front — and nobody arriving at this door has a cake yet. The default copy was written
+           for the enquiry, where there IS a cake on the screen behind it. */
+        backLabel="Home"
         /* ⚠️ Same two bugs as the order page's gate, and they were HERE first — this is where that
            gate was copied from. /storefront/:slug/settings carries neither `bakerName` nor `primary`
            nor `channels`: it has otp_channels, otp_required, delivery, store_hours, lead_time_days.
            So this door has been reading undefined for both, showing "Who shall undefined ask for?",
            and falling back to ["sms"] for bakers whose server accepts email only. Found 2026-09-18
            against the live 31-bakers storefront while testing the order link. */
-        channels={settings?.otp_channels ?? ["email"]}
+        /* ⚠️ PHONE FIRST, AND ALONE WHERE THE SERVER CAN SEND ONE. India runs on phone numbers, not
+           email: an Android owner has a Gmail address and does not read it. Sandeep, 2026-09-19:
+           "i hav setup android phone for my father. who can login with phone otp, but not very good
+           at email." Offering both made email the default here (the server lists it first), and the
+           measured cost is in the customers table — of 6 storefront enquiries, 4 have NO PHONE, so
+           the baker's next action on two thirds of them, which is to telephone, is impossible.
+           ⚠️ Still intersected with what the SERVER will accept. Hardcoding ["sms"] on a deployment
+           without SMS is how somebody waits for a code a telco already scrubbed — so this prefers
+           phone and falls back to whatever that storefront can actually deliver.
+           The email is not abandoned, it is DEFERRED: it is asked for at the quote, where the
+           customer wants to be reachable, rather than at a door they have not chosen to enter yet. */
+        channels={settings?.otp_channels?.includes("sms") ? ["sms"] : settings?.otp_channels ?? ["email"]}
         /* ⚠️ NOBODY IS GETTING IN TOUCH YET. The default copy — "${baker} will be in touch about your
            cake" — is true at enquiry SUBMIT and false here: nothing has been sent, there is no cake
            yet, and the visitor came to build one. This door asks only because the designer cannot
