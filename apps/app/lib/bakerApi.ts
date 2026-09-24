@@ -483,8 +483,13 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
         body: JSON.stringify({ conflicts }),
       }),
 
-    // ── Templates (baker management: global Spattoo templates + this baker's exclusions) ──
+    // ── Templates ─────────────────────────────────────────────────────────────
+    // Two lists, because a baker does two different things to the two kinds: the Spattoo library is
+    // switched on and off, their own are removed. Settings → Templates shows both.
     fetchBakerTemplates: () => authGet("/api/baker/templates"),
+    fetchMyTemplates: () => authGet("/api/baker/templates/mine"),
+    deleteBakerTemplate: (id: string) =>
+      authFetch(`/api/baker/templates/${id}`, { method: "DELETE" }),
     updateBakerTemplateExclusions: (excludedTemplateIds: string[]) =>
       authFetch("/api/baker/templates/exclusions", {
         method: "PUT",
