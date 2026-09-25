@@ -496,6 +496,22 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
         body: JSON.stringify({ excluded_template_ids: excludedTemplateIds }),
       }),
 
+    // ── The catalogue (opt-IN) ────────────────────────────────────────────────
+    // The two above are the opt-OUT pair and still serve released bundles. These are the opt-IN
+    // replacement: a baker CHOOSES what to offer, and absence means not offered.
+    //
+    // ⚠️ SEPARATE ENDPOINTS ON PURPOSE, NOT A NEW FIELD ON THE OLD ONES. Absence means the opposite
+    // in each model, so an exclusion set arriving at a route that records inclusions would offer
+    // exactly the templates the baker had switched off. Dual-accepting a field name — how
+    // tag_ids/occasion_tag_ids stayed compatible — is wrong here, because there both names meant the
+    // same thing. See spattoo-docs/plans/baker-catalogue.md.
+    fetchBakerCatalogue: () => authGet("/api/baker/catalogue"),
+    updateBakerCatalogue: (offeredTemplateIds: string[]) =>
+      authFetch("/api/baker/catalogue", {
+        method: "PUT",
+        body: JSON.stringify({ offered_template_ids: offeredTemplateIds }),
+      }),
+
     // ── Staff (owner adds a staff member) ─────────────────────────────────────
     addStaff: (payload: unknown) =>
       authFetch("/api/baker/staff", { method: "POST", body: JSON.stringify(payload) }),
