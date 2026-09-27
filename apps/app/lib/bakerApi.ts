@@ -130,7 +130,12 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
     // his customers do.
     fetchCakeShapes: () => authGet("/api/cake-shapes"),
     fetchTags: () => authGet("/api/tags"),
-    fetchTemplates: () => authGet("/api/templates").catch(() => []),
+    /* ⚠️ DOES NOT SWALLOW A FAILURE. This was `.catch(() => [])`, which turned a 500 into an empty
+       catalogue: on 2026-09-27 a customer's request crashed the route and the designer said "No
+       templates yet" — a server fault dressed as an empty shop, which is why it reached Sandeep
+       instead of a log. `authFetch` already throws an Error carrying `status` and `code`; the
+       designer catches it and says something went wrong. An empty list must mean EMPTY. */
+    fetchTemplates: () => authGet("/api/templates"),
     fetchTemplate: (id: string) => authGet(`/api/templates/${id}`),
 
     // Saving a design as a template. Goes through the API (not a direct browser insert) so the
