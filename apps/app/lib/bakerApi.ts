@@ -506,17 +506,15 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
       }),
 
     // ── Templates ─────────────────────────────────────────────────────────────
-    // Two lists, because a baker does two different things to the two kinds: the Spattoo library is
-    // switched on and off, their own are removed. Settings → Templates shows both.
-    fetchBakerTemplates: () => authGet("/api/baker/templates"),
+    // ⚠️ THE OPT-OUT PAIR IS GONE (2026-09-28). `fetchBakerTemplates` (GET /api/baker/templates) and
+    // `updateBakerTemplateExclusions` (PUT .../exclusions) were removed with their routes and with
+    // `baker_template_exclusions` itself. Sandeep: *"there are no bakers existing in prod. so prev
+    // logic of exclusions is not valid. its only the catalogue that needs to be showed now."* Both
+    // were already dead here — no screen had called either since Manage-templates became Library.
+    // What replaced them is the catalogue pair below.
     fetchMyTemplates: () => authGet("/api/baker/templates/mine"),
     deleteBakerTemplate: (id: string) =>
       authFetch(`/api/baker/templates/${id}`, { method: "DELETE" }),
-    updateBakerTemplateExclusions: (excludedTemplateIds: string[]) =>
-      authFetch("/api/baker/templates/exclusions", {
-        method: "PUT",
-        body: JSON.stringify({ excluded_template_ids: excludedTemplateIds }),
-      }),
 
     // ── The catalogue (opt-IN) ────────────────────────────────────────────────
     // The two above are the opt-OUT pair and still serve released bundles. These are the opt-IN
