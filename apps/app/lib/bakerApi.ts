@@ -144,6 +144,23 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
     // customers. The rights gate is storefront publish (see publishStorefront).
     createTemplate: (payload: Record<string, unknown>) =>
       authFetch("/api/baker/templates", { method: "POST", body: JSON.stringify(payload) }),
+    /* A PHOTOGRAPH of a cake already made, straight into the catalogue. Same route as a saved
+       design — a photo is a catalogue row like any other, just one with no design — so `type` and
+       `add_to_catalogue` are set HERE rather than trusted from core: the upload exists precisely
+       because the baker has decided to show it, and there is no staging step to opt into.
+       No rights attestation, for the same reason createTemplate has none: the gate is storefront
+       publish, and that attestation stands over content added later. */
+    uploadCataloguePhoto: (p: { name: string; thumbnail_url: string; tier_count?: number | null }) =>
+      authFetch("/api/baker/templates", {
+        method: "POST",
+        body: JSON.stringify({
+          name:             p.name,
+          thumbnail_url:    p.thumbnail_url,
+          tier_count:       p.tier_count ?? null,
+          type:             "photo",
+          add_to_catalogue: true,
+        }),
+      }),
     // The exact sentence the baker affirms at publish, published + hashed server-side so we can
     // later prove which wording they saw. Null while Layer 1 is still draft.
     fetchAttestationStatement: () =>
