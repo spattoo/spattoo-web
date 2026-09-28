@@ -130,7 +130,12 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
     // his customers do.
     fetchCakeShapes: () => authGet("/api/cake-shapes"),
     fetchTags: () => authGet("/api/tags"),
-    fetchTemplates: () => authGet("/api/templates").catch(() => []),
+    /* ⚠️ DOES NOT SWALLOW A FAILURE. This was `.catch(() => [])`, which turned a 500 into an empty
+       catalogue: on 2026-09-27 a customer's request crashed the route and the designer said "No
+       templates yet" — a server fault dressed as an empty shop, which is why it reached Sandeep
+       instead of a log. `authFetch` already throws an Error carrying `status` and `code`; the
+       designer catches it and says something went wrong. An empty list must mean EMPTY. */
+    fetchTemplates: () => authGet("/api/templates"),
     fetchTemplate: (id: string) => authGet(`/api/templates/${id}`),
 
     // Saving a design as a template. Goes through the API (not a direct browser insert) so the
@@ -139,6 +144,23 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
     // customers. The rights gate is storefront publish (see publishStorefront).
     createTemplate: (payload: Record<string, unknown>) =>
       authFetch("/api/baker/templates", { method: "POST", body: JSON.stringify(payload) }),
+    /* A PHOTOGRAPH of a cake already made, straight into the catalogue. Same route as a saved
+       design — a photo is a catalogue row like any other, just one with no design — so `type` and
+       `add_to_catalogue` are set HERE rather than trusted from core: the upload exists precisely
+       because the baker has decided to show it, and there is no staging step to opt into.
+       No rights attestation, for the same reason createTemplate has none: the gate is storefront
+       publish, and that attestation stands over content added later. */
+    uploadCataloguePhoto: (p: { name: string; thumbnail_url: string; tier_count?: number | null }) =>
+      authFetch("/api/baker/templates", {
+        method: "POST",
+        body: JSON.stringify({
+          name:             p.name,
+          thumbnail_url:    p.thumbnail_url,
+          tier_count:       p.tier_count ?? null,
+          type:             "photo",
+          add_to_catalogue: true,
+        }),
+      }),
     // The exact sentence the baker affirms at publish, published + hashed server-side so we can
     // later prove which wording they saw. Null while Layer 1 is still draft.
     fetchAttestationStatement: () =>
@@ -484,16 +506,30 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
       }),
 
     // ── Templates ─────────────────────────────────────────────────────────────
-    // Two lists, because a baker does two different things to the two kinds: the Spattoo library is
-    // switched on and off, their own are removed. Settings → Templates shows both.
-    fetchBakerTemplates: () => authGet("/api/baker/templates"),
+    // ⚠️ THE OPT-OUT PAIR IS GONE (2026-09-28). `fetchBakerTemplates` (GET /api/baker/templates) and
+    // `updateBakerTemplateExclusions` (PUT .../exclusions) were removed with their routes and with
+    // `baker_template_exclusions` itself. Sandeep: *"there are no bakers existing in prod. so prev
+    // logic of exclusions is not valid. its only the catalogue that needs to be showed now."* Both
+    // were already dead here — no screen had called either since Manage-templates became Library.
+    // What replaced them is the catalogue pair below.
     fetchMyTemplates: () => authGet("/api/baker/templates/mine"),
     deleteBakerTemplate: (id: string) =>
       authFetch(`/api/baker/templates/${id}`, { method: "DELETE" }),
-    updateBakerTemplateExclusions: (excludedTemplateIds: string[]) =>
-      authFetch("/api/baker/templates/exclusions", {
+
+    // ── The catalogue (opt-IN) ────────────────────────────────────────────────
+    // The two above are the opt-OUT pair and still serve released bundles. These are the opt-IN
+    // replacement: a baker CHOOSES what to offer, and absence means not offered.
+    //
+    // ⚠️ SEPARATE ENDPOINTS ON PURPOSE, NOT A NEW FIELD ON THE OLD ONES. Absence means the opposite
+    // in each model, so an exclusion set arriving at a route that records inclusions would offer
+    // exactly the templates the baker had switched off. Dual-accepting a field name — how
+    // tag_ids/occasion_tag_ids stayed compatible — is wrong here, because there both names meant the
+    // same thing. See spattoo-docs/plans/baker-catalogue.md.
+    fetchBakerCatalogue: () => authGet("/api/baker/catalogue"),
+    updateBakerCatalogue: (offeredTemplateIds: string[]) =>
+      authFetch("/api/baker/catalogue", {
         method: "PUT",
-        body: JSON.stringify({ excluded_template_ids: excludedTemplateIds }),
+        body: JSON.stringify({ offered_template_ids: offeredTemplateIds }),
       }),
 
     // ── Staff (owner adds a staff member) ─────────────────────────────────────

@@ -215,6 +215,10 @@ export default function BakerApp() {
     minAge: number | null;
     maxAge: number | null;
     occasionTagIds: string[];
+    // Whether the baker asked for this design to go straight into their catalogue. Optional
+    // because core is vendored: a released bundle predating the checkbox sends nothing, and
+    // nothing means staged, which is the safe default.
+    addToCatalogue?: boolean;
   }) {
     let thumbnailKey: string | null = null;
     if (t.thumbnailBlob) {
@@ -242,6 +246,11 @@ export default function BakerApp() {
       min_age:          t.minAge,
       max_age:          t.maxAge,
       occasion_tag_ids: t.occasionTagIds,
+      // ⚠️ THIS MAPPING IS FIELD BY FIELD, so anything core sends that is not named here is dropped
+      // silently. `tagIds` is being discarded right now for exactly that reason — harmless only
+      // because core sends the same ids under `occasionTagIds` too. A catalogue flag has no such
+      // older twin, so without this line the checkbox in the save modal would do nothing at all.
+      add_to_catalogue: t.addToCatalogue === true,
     });
   }
 

@@ -82,7 +82,12 @@ export function makeCustomerApiClient(supabase: SupabaseClient, slug: string) {
     // rectangle only — so a customer would never be offered the baker's heart or hexagon.
     fetchCakeShapes: () => authGet(`/api/cake-shapes`),
     fetchTags: () => authGet(`/api/tags`),
-    fetchTemplates: () => authGet(`/api/templates`).catch(() => []),
+    /* ⚠️ DOES NOT SWALLOW A FAILURE. This was `.catch(() => [])`, which turned a 500 into an empty
+       catalogue: on 2026-09-27 a customer's request crashed the route and the designer said "No
+       templates yet" — a server fault dressed as an empty shop, which is why it reached Sandeep
+       instead of a log. `authFetch` already throws an Error carrying `status` and `code`; the
+       designer catches it and says something went wrong. An empty list must mean EMPTY. */
+    fetchTemplates: () => authGet(`/api/templates`),
     fetchTemplate: (id: string) => authGet(`/api/templates/${id}`),
 
     // The principal's real role + capabilities (resolveCustomer → 'customer' with
