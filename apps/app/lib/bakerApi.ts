@@ -702,6 +702,26 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
     // ── Account ───────────────────────────────────────────────────────────────
     signOut: () => supabase.auth.signOut(),
     changePassword: (password: string) => supabase.auth.updateUser({ password }),
+
+    // Changing your own phone number. NOT supabase.auth — deliberately.
+    //
+    // signInWithOtp/verifyOtp, which every other OTP in this app uses, answer with a SESSION: they
+    // would sign the baker in as whoever owns the number they typed, or mint a fresh empty auth
+    // user and sign them in as that. And updateUser({ phone }) would put the number on auth.users,
+    // where — phone sign-in being enabled for the storefront — it becomes a password-free door into
+    // the bakery. The baker is already signed in here; the only question is whether they can
+    // receive a text at the new number, so the server mints and checks its own code.
+    // See spattoo-backend migrations/119 and routes/account.js.
+    startPhoneChange: (phone: string, country?: string) =>
+      authFetch("/api/baker/account/phone/start", {
+        method: "POST",
+        body: JSON.stringify({ phone, country }),
+      }),
+    confirmPhoneChange: (code: string) =>
+      authFetch("/api/baker/account/phone/confirm", {
+        method: "POST",
+        body: JSON.stringify({ code }),
+      }),
   };
 }
 
