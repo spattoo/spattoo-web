@@ -712,6 +712,15 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
         body: JSON.stringify({ password }),
       }),
 
+    /* ── How the baker's own rail looks (Blaze+) ───────────────────────────────────────────────
+       The response carries `served` already resolved against the entitlement, so the client never
+       decides whether a plan allows a skin — doing that here would be a second copy of a billing
+       rule, and the quieter one. `chosen` and `served` differ for a baker who picked a skin and
+       then downgraded, which is exactly what the chooser needs to show the tick AND the reason. */
+    fetchRailSkins: () => authGet("/api/baker/account/rail-skins"),
+    setRailSkin: (key: string | null) =>
+      authFetch("/api/baker/account/rail-skin", { method: "PUT", body: JSON.stringify({ key }) }),
+
     // Prove it is still you, so the server will accept a change on the account screen.
     //
     // The password goes to SUPABASE, exactly as it does at sign-in, and never to our API — which
