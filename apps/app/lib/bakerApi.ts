@@ -712,6 +712,21 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
         body: JSON.stringify({ password }),
       }),
 
+    /* ── Proving a new bakery address ──────────────────────────────────────────────────────────
+       The bakery email receives orders, quotes and invoices, so it is proved by a code to the NEW
+       address before it is saved — the same shape as the phone, and for the same reason: only the
+       new inbox can answer "does this reach you".
+
+       ⚠️ NOT supabase.auth. The app-user's email is the sign-in identity and nothing here touches
+       it; this is `bakers.email`, a business contact. Clearing needs no code — it falls back to the
+       address Supabase already verified and the baker is signed in with. */
+    startEmailChange: (email: string) =>
+      authFetch("/api/baker/account/email/start", { method: "POST", body: JSON.stringify({ email }) }),
+    confirmEmailChange: (code: string) =>
+      authFetch("/api/baker/account/email/confirm", { method: "POST", body: JSON.stringify({ code }) }),
+    clearBakerEmail: () =>
+      authFetch("/api/baker/account/email/clear", { method: "POST" }),
+
     /* ── How the baker's own rail looks (Blaze+) ───────────────────────────────────────────────
        The response carries `served` already resolved against the entitlement, so the client never
        decides whether a plan allows a skin — doing that here would be a second copy of a billing
