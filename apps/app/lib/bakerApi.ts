@@ -701,7 +701,79 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
 
     // ── Account ───────────────────────────────────────────────────────────────
     signOut: () => supabase.auth.signOut(),
-    changePassword: (password: string) => supabase.auth.updateUser({ password }),
+    // ⚠️ THROUGH THE API, NOT supabase.auth.updateUser — which is what this used to be.
+    // That call goes browser → Supabase with our server nowhere in the path, so nothing could gate
+    // it: a borrowed session could change the password from a console and skip whatever the screen
+    // was showing. The server route re-checks that a password was typed recently (the `amr` claim)
+    // and can actually refuse. See spattoo-api/src/middleware/reauth.js.
+    changePassword: (password: string) =>
+      authFetch("/api/baker/account/password", {
+        method: "POST",
+        body: JSON.stringify({ password }),
+      }),
+
+    /* ── Proving a new bakery address ──────────────────────────────────────────────────────────
+       The bakery email receives orders, quotes and invoices, so it is proved by a code to the NEW
+       address before it is saved — the same shape as the phone, and for the same reason: only the
+       new inbox can answer "does this reach you".
+
+       ⚠️ NOT supabase.auth. The app-user's email is the sign-in identity and nothing here touches
+       it; this is `bakers.email`, a business contact. Clearing needs no code — it falls back to the
+       address Supabase already verified and the baker is signed in with. */
+    startEmailChange: (email: string) =>
+      authFetch("/api/baker/account/email/start", { method: "POST", body: JSON.stringify({ email }) }),
+    confirmEmailChange: (code: string) =>
+      authFetch("/api/baker/account/email/confirm", { method: "POST", body: JSON.stringify({ code }) }),
+    clearBakerEmail: () =>
+      authFetch("/api/baker/account/email/clear", { method: "POST" }),
+
+    /* ── How the baker's own rail looks (Blaze+) ───────────────────────────────────────────────
+       The response carries `served` already resolved against the entitlement, so the client never
+       decides whether a plan allows a skin — doing that here would be a second copy of a billing
+       rule, and the quieter one. `chosen` and `served` differ for a baker who picked a skin and
+       then downgraded, which is exactly what the chooser needs to show the tick AND the reason. */
+    fetchRailSkins: () => authGet("/api/baker/account/rail-skins"),
+    setRailSkin: (key: string | null) =>
+      authFetch("/api/baker/account/rail-skin", { method: "PUT", body: JSON.stringify({ key }) }),
+
+    // Prove it is still you, so the server will accept a change on the account screen.
+    //
+    // The password goes to SUPABASE, exactly as it does at sign-in, and never to our API — which
+    // would otherwise become an endpoint that answers "is this the right password", i.e. a
+    // brute-force oracle. What our API sees is the next access token, into which Supabase has
+    // stamped `amr: [{ method: 'password', timestamp }]`. It is signed, so it cannot be forged, and
+    // refreshing a token does not touch it (measured: a live token's amr was 54 days older than its
+    // own iat).
+    //
+    // Returns nothing useful on purpose: the proof is the new session, which supabase-js has
+    // already adopted by the time this resolves.
+    reauthenticate: async (password: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const email = user?.email;
+      if (!email) throw new Error("You are not signed in.");
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw Object.assign(new Error("That password is not right."), { code: "bad_password" });
+    },
+
+    // Changing your own phone number. NOT supabase.auth — deliberately.
+    //
+    // signInWithOtp/verifyOtp, which every other OTP in this app uses, answer with a SESSION: they
+    // would sign the baker in as whoever owns the number they typed, or mint a fresh empty auth
+    // user and sign them in as that. And updateUser({ phone }) would put the number on auth.users,
+    // where — phone sign-in being enabled for the storefront — it becomes a password-free door into
+    // the bakery. The baker is already signed in here; the only question is whether they can
+    // receive a text at the new number, so the server mints and checks its own code.
+    // See spattoo-backend migrations/119 and routes/account.js.
+    startPhoneChange: (phone: string, country?: string) =>
+      authFetch("/api/baker/account/phone/start", {
+        method: "POST",
+        body: JSON.stringify({ phone, country }),
+      }),
+    confirmPhoneChange: (code: string) =>
+      authFetch("/api/baker/account/phone/confirm", {
+        method: "POST",
+        body: JSON.stringify({ code }),
+      }),
   };
 }
 
