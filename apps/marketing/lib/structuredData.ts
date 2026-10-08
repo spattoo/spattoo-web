@@ -32,11 +32,23 @@ function organisation(site: string) {
   };
 }
 
+/* ⚠️ DATE-ONLY, NOT A TIMESTAMP, and that is a correction rather than a style choice.
+ * `Date.parse("9 October 2026")` returns LOCAL midnight; `toISOString()` then converts to
+ * UTC, which in IST (+5:30) lands at 18:30 the PREVIOUS day. The markup was telling search
+ * engines each article was published a day before the page says it was. schema.org accepts
+ * a bare YYYY-MM-DD, so the fix is to never introduce a time we do not know in the first
+ * place — the registry stores a day, so the markup should state a day. */
+function isoDay(human: string): string | undefined {
+  if (!human) return undefined;
+  const t = Date.parse(human);
+  if (Number.isNaN(t)) return undefined;
+  const d = new Date(t);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 export function articleSchema(post: BlogPost, site: string, image: string) {
-  const published = post.date ? new Date(Date.parse(post.date)) : null;
-  const iso = published && !Number.isNaN(published.getTime())
-    ? published.toISOString()
-    : undefined;
+  const iso = isoDay(post.date);
 
   return {
     "@context": "https://schema.org",

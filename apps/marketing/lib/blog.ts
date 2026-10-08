@@ -53,22 +53,24 @@ export const BLOG_POSTS: BlogPost[] = [
     description:
       "How Indian bakers turn culture into cake — a Krishna cake with no Krishna on it, mithai flavours that survive the move, and what the work costs to make.",
     file: "indian-cake-design.md",
-    // DRAFT — readable on dev at its real URL, 404 on spattoo.com.
+    // Published 9 October 2026. Rights are clear on the same basis as the first article:
+    // all four illustrations are generated rather than licensed, no cake photograph
+    // belonging to anyone else appears, and nobody is quoted.
     //
-    // ⚠️ Outstanding before this can be published, in order of what it costs us:
-    //   · no share card of its own. It falls back to /blog/og-article.jpg, the leather
-    //     satchel from the first article, which has nothing to do with this piece. These
-    //     links travel on WhatsApp, so that is the highest-value gap. Prompt 3 in
-    //     ~/Downloads/Blogs/image-prompts-indian-cake-design.md generates it at 1200x630.
-    //   · no Indian baker speaks in it. The same gap the first article carries, and this
-    //     piece has more room for it — section 7, on what the work costs to make, is
-    //     written entirely from the outside.
-    //   · sections 3, 4 and 7 have no illustration. Prompts 4 and 5 cover two of them;
-    //     section 5 deliberately gets none, because it names a real artist's record-
-    //     breaking structure and a generated image beside that paragraph would read as a
-    //     photograph of her work.
-    status: "draft",
-    date: "",
+    // ⚠️ Still outstanding, and NOT a blocker — it is the most valuable change left:
+    //   · no Indian baker speaks in it. Section 7, on what the work actually costs to
+    //     make, is written entirely from the outside. That matters more than it used to:
+    //     a language model can produce a competent average of everything already written
+    //     about fondant in humidity, so first-hand testimony from a named baker is the
+    //     part of this piece that cannot be synthesised — and the part an answer engine
+    //     would cite rather than absorb.
+    //
+    // ⚠️ Section 5 has no illustration ON PURPOSE. It names Prachi Dhabal Deb's
+    // record-breaking royal icing palace, and a generated image beside that paragraph
+    // would read as a photograph of her actual work. Same rule as the first article's
+    // opening. See ~/Downloads/Blogs/image-prompts-indian-cake-design.md.
+    status: "published",
+    date: "9 October 2026",
     readingMinutes: 13,
     ogImage: {
       url: "/blog/og-indian-cake-design.jpg",
