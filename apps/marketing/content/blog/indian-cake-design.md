@@ -130,6 +130,9 @@ almost the same, the gesture is almost the same, and the line quality a mehendi 
 spends years developing transfers to a piping bag more directly than most techniques
 transfer to each other.
 
+![A single round ivory cake covered in fine piped royal-icing linework in henna brown, in traditional mehendi style: paisleys with lattice fills, flower rosettes, curling vines and dotted borders running over the top and down the side](/blog/mehendi-piping.webp)
+*Two colours and one bag. The lattice inside the paisleys is the tell — that is a hand that has drawn this pattern many times before, on skin.*
+
 Rangoli and kolam are laid down in powder, as geometry, from the centre out. A buttercream
 top is a circle worked from the centre out. Textile patterns become fondant embossing,
 edible print or hand-painting. Architectural ornament becomes royal icing, modelling
