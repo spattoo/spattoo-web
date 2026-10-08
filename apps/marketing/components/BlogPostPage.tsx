@@ -7,6 +7,8 @@ import remarkGfm from "remark-gfm";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
 import { getPost, visiblePosts } from "@/lib/blog";
+import { BASE_DOMAIN } from "@/lib/domain";
+import { articleSchema, faqSchema } from "@/lib/structuredData";
 
 // Reads an article body at build time. The leading H1 is dropped because the page
 // renders its own heading from the registry title — same split as LegalDocPage, so a
@@ -27,8 +29,28 @@ export default function BlogPostPage({ slug }: { slug: string }) {
 
   const body = loadBody(post.file);
 
+  /* Structured data. A DRAFT EMITS NONE OF IT: the page already carries robots noindex
+     and 404s on production, and marking up a page we are asking not to be indexed is
+     describing something that is not meant to exist yet. Published posts only. */
+  const site = `https://www.${BASE_DOMAIN}`;
+  const schemas =
+    post.status === "published"
+      ? [articleSchema(post, site, "/blog/og-article.jpg"), faqSchema(body, site, post.slug)]
+      : [];
+
   return (
     <main className="min-h-screen bg-[#111111] text-[#edeae3]">
+      {schemas.filter(Boolean).map((schema, i) => (
+        <script
+          key={i}
+          type="application/ld+json"
+          /* The payload is ours — a registry entry and our own markdown — never user
+             input, so there is no injection surface here. JSON.stringify also escapes
+             the one character that would matter. */
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        />
+      ))}
+
       <SiteNav />
 
       <article className="max-w-3xl mx-auto px-6 pt-32 pb-24">

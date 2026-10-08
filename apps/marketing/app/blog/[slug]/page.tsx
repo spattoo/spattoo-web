@@ -25,6 +25,10 @@ export async function generateMetadata({
     description: post.description,
     // A draft that leaks onto a preview URL should still never be indexed.
     robots: post.status === "draft" ? { index: false, follow: false } : undefined,
+    // One address for the article, whatever URL it was reached by. metadataBase makes
+    // this absolute and points it at the production domain, so a copy served from a
+    // preview URL credits the real page rather than competing with it.
+    alternates: { canonical: `/blog/${post.slug}` },
     // The share card. WhatsApp is the channel this gets sent on, and it reads OG tags
     // only — no OG image means a bare line of text next to a favicon, which is what
     // every link to this site produced before now. `title` here is the ARTICLE title
