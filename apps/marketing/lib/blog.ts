@@ -32,6 +32,30 @@ export type BlogPost = {
 // at its real URL, on a phone, in the real layout, before anyone outside can reach it.
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "indian-cake-design",
+    title: "Indian Cake Design: How Culture Becomes Cake",
+    description:
+      "How Indian bakers turn culture into cake — a Krishna cake with no Krishna on it, mithai flavours that survive the move, and what the work costs to make.",
+    file: "indian-cake-design.md",
+    // DRAFT — readable on dev at its real URL, 404 on spattoo.com.
+    //
+    // ⚠️ Outstanding before this can be published, in order of what it costs us:
+    //   · no share card of its own. It falls back to /blog/og-article.jpg, the leather
+    //     satchel from the first article, which has nothing to do with this piece. These
+    //     links travel on WhatsApp, so that is the highest-value gap. Prompt 3 in
+    //     ~/Downloads/Blogs/image-prompts-indian-cake-design.md generates it at 1200x630.
+    //   · no Indian baker speaks in it. The same gap the first article carries, and this
+    //     piece has more room for it — section 7, on what the work costs to make, is
+    //     written entirely from the outside.
+    //   · sections 3, 4 and 7 have no illustration. Prompts 4 and 5 cover two of them;
+    //     section 5 deliberately gets none, because it names a real artist's record-
+    //     breaking structure and a generated image beside that paragraph would read as a
+    //     photograph of her work.
+    status: "draft",
+    date: "",
+    readingMinutes: 13,
+  },
+  {
     slug: "cake-design-storytelling",
     title: "How Cake Design Is Becoming a New Form of Storytelling",
     description:
