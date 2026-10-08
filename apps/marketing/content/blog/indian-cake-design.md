@@ -112,6 +112,9 @@ structure:
 - **Kaju katli** → almond-cashew richness, geometric form, and *vark* — the edible silver leaf that mithai shops have used for generations and that transfers onto cake without any adaptation at all.
 - **Gajar halwa** → carrot, cardamom, nuts and warm spice, which is already most of the way to a carrot cake and tends to surprise people by how well it travels.
 
+![A rasmalai-inspired layer cake with a wedge cut away, showing saffron-flecked milk-soaked sponge layered with cardamom cream, finished in ivory buttercream with crushed pistachio around the base and dried rose petals and saffron strands on top](/blog/rasmalai-layers.webp)
+*The sweet taken apart and rebuilt as structure: the milk soak, the cardamom cream, the saffron and the pistachio all doing the same job they do in the bowl. Nothing sits on top as a garnish.*
+
 The reference stays familiar. The format changes. That is the whole trick, and it is the
 same trick the visual work uses.
 
