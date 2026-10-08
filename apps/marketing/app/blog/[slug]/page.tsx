@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import BlogPostPage from "@/components/BlogPostPage";
-import { getPost, visiblePosts } from "@/lib/blog";
+import { getPost, visiblePosts, ogFor } from "@/lib/blog";
 
 export const dynamic = "force-static";
 
@@ -20,6 +20,10 @@ export async function generateMetadata({
   const { slug } = await params;
   const post = getPost(slug);
   if (!post) return {};
+  /* The share card is resolved ONCE, by ogFor — the page metadata below and the Article
+     structured data in BlogPostPage both ask the same function, so they cannot end up
+     describing two different pictures of the same page. */
+  const og = ogFor(post);
   return {
     title: `${post.title} — Spattoo`,
     description: post.description,
@@ -40,14 +44,7 @@ export async function generateMetadata({
       type: "article",
       url: `/blog/${post.slug}`,
       publishedTime: post.date || undefined,
-      images: [
-        {
-          url: "/blog/og-article.jpg",
-          width: 1200,
-          height: 630,
-          alt: "A cake made to look like a leather satchel, cut open to reveal sponge inside",
-        },
-      ],
+      images: [{ url: og.url, width: 1200, height: 630, alt: og.alt }],
     },
   };
 }

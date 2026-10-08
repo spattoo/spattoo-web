@@ -6,7 +6,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import SiteNav from "./SiteNav";
 import SiteFooter from "./SiteFooter";
-import { getPost, visiblePosts } from "@/lib/blog";
+import { getPost, visiblePosts, ogFor } from "@/lib/blog";
 import { BASE_DOMAIN } from "@/lib/domain";
 import { articleSchema, faqSchema } from "@/lib/structuredData";
 
@@ -35,7 +35,7 @@ export default function BlogPostPage({ slug }: { slug: string }) {
   const site = `https://www.${BASE_DOMAIN}`;
   const schemas =
     post.status === "published"
-      ? [articleSchema(post, site, "/blog/og-article.jpg"), faqSchema(body, site, post.slug)]
+      ? [articleSchema(post, site, ogFor(post).url), faqSchema(body, site, post.slug)]
       : [];
 
   return (
