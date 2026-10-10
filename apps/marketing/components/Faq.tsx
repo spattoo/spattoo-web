@@ -54,9 +54,14 @@ export default function Faq() {
             /* `group` + `open:` drives the chevron from the element's own state, so nothing has to
                track which row is open. One row open does not close another — a baker comparing two
                answers should not have to choose between them. */
-            <details key={q} className="group py-5">
+            /* ⚠️ THE PADDING IS ON THE <summary>, NOT THE <details>, AND THAT IS THE TAP TARGET.
+               It was on the details first, which looked identical and was not: tapping a details'
+               padding does nothing — only the summary toggles. Measured at 375px the row was 26px
+               tall, the height of the text alone, against the 44px Apple asks for and the 48dp
+               Android does. A baker on a phone was aiming at a line of text. */
+            <details key={q} className="group">
               <summary
-                className="flex items-start justify-between gap-6 cursor-pointer list-none
+                className="flex items-start justify-between gap-6 py-5 cursor-pointer list-none
                            text-[#edeae3] font-medium leading-relaxed
                            marker:content-none [&::-webkit-details-marker]:hidden
                            focus-visible:outline-none focus-visible:ring-2
@@ -80,14 +85,17 @@ export default function Faq() {
                   <path d="m6 9 6 6 6-6" />
                 </svg>
               </summary>
-              {a.map((para, i) => (
-                <p
-                  key={i}
-                  className={`${i === 0 ? "mt-4" : "mt-3"} pr-11 text-[#edeae3]/60 leading-relaxed`}
-                >
-                  {para}
-                </p>
-              ))}
+              {/* pb-5 restores the bottom breathing room the details used to own. */}
+              <div className="pb-5">
+                {a.map((para, i) => (
+                  <p
+                    key={i}
+                    className={`${i === 0 ? "" : "mt-3"} pr-11 text-[#edeae3]/60 leading-relaxed`}
+                  >
+                    {para}
+                  </p>
+                ))}
+              </div>
             </details>
           ))}
         </div>
