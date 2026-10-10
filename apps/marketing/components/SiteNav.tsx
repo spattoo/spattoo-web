@@ -41,6 +41,7 @@ export default function SiteNav() {
         <a href="/#how-it-works" className="hover:text-[#edeae3] transition-colors">How It Works</a>
         <a href="/#pricing" className="hover:text-[#edeae3] transition-colors">Pricing</a>
         <a href="/#about" className="hover:text-[#edeae3] transition-colors">About Us</a>
+        <a href="/#faq" className="hover:text-[#edeae3] transition-colors">FAQ</a>
         {/* Between About Us and Contact deliberately: the first four items are the pitch in
             order (what it does, what it costs, who we are), and Contact is the end of that
             run. Writing sits with "who we are" rather than interrupting the pitch, and

@@ -106,13 +106,27 @@ export function faqSchema(body: string, site: string, slug: string) {
     .map(({ q, a }) => ({ q, a: a.join(" ").trim() }))
     .filter((x) => x.a.length > 0);
 
-  if (!answered.length) return null;
+  return faqPageSchema(answered, `${site}/blog/${slug}#faq`);
+}
+
+/** The FAQPage block itself, for questions that are ALREADY a list.
+ *
+ *  Split out of `faqSchema` when the marketing homepage grew its own FAQ section: that one does not
+ *  parse markdown — its questions are a typed array in `lib/faq.ts` — but the schema it emits has
+ *  to be the same shape, and two copies of a schema is how one of them quietly stops matching the
+ *  page. The markdown parser above now ends here too.
+ *
+ *  ⚠️ The `@id` is the caller's, because it names where the questions are VISIBLE. Same rule as the
+ *  note at the top of this file: never mark up what the page does not show, which also means never
+ *  claiming the markup lives somewhere it does not. */
+export function faqPageSchema(questions: { q: string; a: string }[], id: string) {
+  if (!questions.length) return null;
 
   return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "@id": `${site}/blog/${slug}#faq`,
-    mainEntity: answered.map(({ q, a }) => ({
+    "@id": id,
+    mainEntity: questions.map(({ q, a }) => ({
       "@type": "Question",
       name: q,
       acceptedAnswer: { "@type": "Answer", text: a },

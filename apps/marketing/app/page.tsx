@@ -4,6 +4,7 @@ import Pricing from "@/components/Pricing";
 import PricingCTA from "@/components/PricingCTA";
 import Contact from "@/components/Contact";
 import About from "@/components/About";
+import Faq from "@/components/Faq";
 import PainPoint from "@/components/PainPoint";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
@@ -93,6 +94,8 @@ export default function Home() {
       <PricingCTA />
 
       <About />
+
+      <Faq />
 
       <Contact />
 
