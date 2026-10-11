@@ -15,6 +15,7 @@ const links = [
   { label: "How It Works", href: "/#how-it-works" },
   { label: "Pricing", href: "/#pricing" },
   { label: "About Us", href: "/#about" },
+  { label: "FAQ", href: "/#faq" },
   // Same position as the desktop header, so the two menus read in one order.
   // Filtered out below when there is nothing published — see BLOG_IN_NAV in lib/blog.ts.
   { label: "Blog", href: "/blog", blog: true },

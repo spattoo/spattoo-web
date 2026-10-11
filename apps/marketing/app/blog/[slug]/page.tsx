@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import BlogPostPage from "@/components/BlogPostPage";
-import { getPost, visiblePosts } from "@/lib/blog";
+import { getPost, visiblePosts, ogFor } from "@/lib/blog";
 
 export const dynamic = "force-static";
 
@@ -20,11 +20,19 @@ export async function generateMetadata({
   const { slug } = await params;
   const post = getPost(slug);
   if (!post) return {};
+  /* The share card is resolved ONCE, by ogFor — the page metadata below and the Article
+     structured data in BlogPostPage both ask the same function, so they cannot end up
+     describing two different pictures of the same page. */
+  const og = ogFor(post);
   return {
     title: `${post.title} — Spattoo`,
     description: post.description,
     // A draft that leaks onto a preview URL should still never be indexed.
     robots: post.status === "draft" ? { index: false, follow: false } : undefined,
+    // One address for the article, whatever URL it was reached by. metadataBase makes
+    // this absolute and points it at the production domain, so a copy served from a
+    // preview URL credits the real page rather than competing with it.
+    alternates: { canonical: `/blog/${post.slug}` },
     // The share card. WhatsApp is the channel this gets sent on, and it reads OG tags
     // only — no OG image means a bare line of text next to a favicon, which is what
     // every link to this site produced before now. `title` here is the ARTICLE title
@@ -36,14 +44,7 @@ export async function generateMetadata({
       type: "article",
       url: `/blog/${post.slug}`,
       publishedTime: post.date || undefined,
-      images: [
-        {
-          url: "/blog/og-article.jpg",
-          width: 1200,
-          height: 630,
-          alt: "A cake made to look like a leather satchel, cut open to reveal sponge inside",
-        },
-      ],
+      images: [{ url: og.url, width: 1200, height: 630, alt: og.alt }],
     },
   };
 }

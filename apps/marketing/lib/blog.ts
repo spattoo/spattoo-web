@@ -19,7 +19,23 @@ export type BlogPost = {
   status: PostStatus;
   date: string; // human-readable; "" while a post is still draft
   readingMinutes: number;
+  // The share card — what WhatsApp, LinkedIn and search results show. OPTIONAL, and it
+  // falls back to the generic /blog/og-article.jpg, which is a leather-satchel cake from
+  // the first article and says nothing about any other piece. A post worth sharing
+  // deserves its own; 1200x630, and the alt text is read aloud, so describe the picture.
+  ogImage?: { url: string; alt: string };
 };
+
+/** The share card for a post, or the generic one. ONE definition, because the route's
+ *  metadata and the Article structured data both need it and must not disagree about
+ *  which image this page is. */
+export const OG_FALLBACK = {
+  url: "/blog/og-article.jpg",
+  alt: "A cake made to look like a leather satchel, cut open to reveal sponge inside",
+} as const;
+
+export const ogFor = (post: BlogPost): { url: string; alt: string } =>
+  post.ogImage ?? OG_FALLBACK;
 
 // ⚠️ STATUS IS NOT COSMETIC — it decides whether the public site serves the post.
 //
@@ -31,6 +47,36 @@ export type BlogPost = {
 // site rather than needing to be remembered about. It lets a piece be read and reviewed
 // at its real URL, on a phone, in the real layout, before anyone outside can reach it.
 export const BLOG_POSTS: BlogPost[] = [
+  {
+    slug: "indian-cake-design",
+    title: "Indian Cake Design: How Culture Becomes Cake",
+    description:
+      "How Indian bakers turn culture into cake — a Krishna cake with no Krishna on it, mithai flavours that survive the move, and what the work costs to make.",
+    file: "indian-cake-design.md",
+    // Published 9 October 2026. Rights are clear on the same basis as the first article:
+    // all four illustrations are generated rather than licensed, no cake photograph
+    // belonging to anyone else appears, and nobody is quoted.
+    //
+    // ⚠️ Still outstanding, and NOT a blocker — it is the most valuable change left:
+    //   · no Indian baker speaks in it. Section 7, on what the work actually costs to
+    //     make, is written entirely from the outside. That matters more than it used to:
+    //     a language model can produce a competent average of everything already written
+    //     about fondant in humidity, so first-hand testimony from a named baker is the
+    //     part of this piece that cannot be synthesised — and the part an answer engine
+    //     would cite rather than absorb.
+    //
+    // ⚠️ Section 5 has no illustration ON PURPOSE. It names Prachi Dhabal Deb's
+    // record-breaking royal icing palace, and a generated image beside that paragraph
+    // would read as a photograph of her actual work. Same rule as the first article's
+    // opening. See ~/Downloads/Blogs/image-prompts-indian-cake-design.md.
+    status: "published",
+    date: "9 October 2026",
+    readingMinutes: 13,
+    ogImage: {
+      url: "/blog/og-indian-cake-design.jpg",
+      alt: "A two-tier Indian celebration cake in royal blue and marigold fondant, with a gold flute across the base, sugar peacock feathers, and a terracotta pot tipping butter down the side",
+    },
+  },
   {
     slug: "cake-design-storytelling",
     title: "How Cake Design Is Becoming a New Form of Storytelling",
