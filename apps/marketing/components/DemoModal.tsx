@@ -63,6 +63,10 @@ export default function DemoModal({ onClose }: Props) {
   // — and it trips the lint rule against setState in an effect, which is worth listening to here
   // rather than silencing.
 
+  // Focused when the number is the reason the form did not go — an error message above a form of
+  // eight fields does not say WHICH one, and the visitor has to hunt for it.
+  const mobileRef = useRef<HTMLInputElement>(null);
+
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -111,6 +115,30 @@ export default function DemoModal({ onClose }: Props) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
+  /* ── Is this the SHAPE of a phone number? ─────────────────────────────────────────────────────
+   *
+   * ⚠️ There was no check at all, here or on the API, and a demo request arrived with a twelve
+   * digit number. Nobody can ring that, and unlike a mistyped email there is no bounce to tell
+   * you — you find out when someone tries to call.
+   *
+   * ⚠️ THE API IS THE AUTHORITY, NOT THIS. The real verdict is libphonenumber's full metadata in
+   * spattoo-api (`lib/phone.js`), which knows India's actual prefixes; this is the shape check that
+   * catches a typo while the visitor is still looking at the field. It is deliberately a SUPERSET
+   * of what the server accepts — anything this passes may still be refused, and the server's
+   * message is shown when that happens. A browser check that is stricter than the server is how a
+   * real customer gets locked out of a form by a rule nobody can see.
+   *
+   * The three local shapes are the ones the server accepts for India — ten digits, a trunk zero and
+   * ten, or 91 and ten — plus anything written in full with a country code.
+   *
+   * It also runs BEFORE the fetch so a typo does not spend the captcha token: that token is
+   * single-use, so submitting with a bad number would refuse the retry on the CAPTCHA instead of on
+   * the thing the visitor just fixed. */
+  function phoneShapeOk(value: string) {
+    const v = value.replace(/[\s()\-.]/g, "");
+    return v.startsWith("+") ? /^\+\d{8,15}$/.test(v) : /^(\d{10}|0\d{10}|91\d{10})$/.test(v);
+  }
+
   // ── It used to just say "thank you" ──────────────────────────────────────────────────────────
   // handleSubmit was `setSubmitted(true)` and nothing else: a success screen over a lead that went
   // nowhere. The component was never imported, so nobody lost anything by it — but it was a trap
@@ -121,6 +149,13 @@ export default function DemoModal({ onClose }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
+
+    if (!phoneShapeOk(form.mobile)) {
+      setErr("That mobile number does not look right — 10 digits for India, or the full number with its country code (+…).");
+      mobileRef.current?.focus();
+      return;
+    }
+
     setBusy(true);
     setErr("");
     try {
@@ -242,9 +277,11 @@ export default function DemoModal({ onClose }: Props) {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-[#edeae3]/75">Mobile Number</label>
                 <input
+                  ref={mobileRef}
                   name="mobile"
                   required
                   type="tel"
+                  inputMode="tel"
                   value={form.mobile}
                   onChange={handleChange}
                   placeholder="+91 98765 43210"
