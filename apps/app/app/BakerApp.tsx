@@ -1561,7 +1561,12 @@ function SetupBaker({
                 does not exist. */}
             <ol className="mt-5 flex flex-col gap-3">
               {[
-                ["Set up your store", <>Hours, delivery and how customers reach you — under <b className="text-[#edeae3]/75">Store Settings</b>.</>],
+                /* ⚠️ "ONCE IT IS PUBLISHED", NOT "PUBLISH IT AND SHARE". Spark has
+                   has_storefront = false, and the customiser's own button reads "Upgrade to
+                   publish" on a locked plan — its comment: *"'Publish' that opens a paywall is a
+                   bait"*. So this says what the link IS and what unlocks it, and lets that screen
+                   name the upgrade at the moment they actually want it. */
+                ["Set up your store", <>Hours, delivery and how customers reach you — under <b className="text-[#edeae3]/75">Store Settings</b>. Once it&apos;s published you get a link to share with your customers.</>],
                 ["Fill your catalogue", <>Open <b className="text-[#edeae3]/75">Library</b> to see Spattoo&apos;s cakes and move the ones you want into your <b className="text-[#edeae3]/75">Catalogue</b>. Nothing is offered until you choose it.</>],
                 ["Design your first cake", <>The 3D designer is the whole product. Start from a template or an empty tier.</>],
               ].map(([title, body], i) => (
