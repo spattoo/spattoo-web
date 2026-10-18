@@ -1570,8 +1570,14 @@ function SetupBaker({
                 does not exist. */}
             <ol className="mt-5 flex flex-col gap-3">
               {[
-                ["Set up your store", <>Hours, delivery and how customers reach you — under <b className="text-[#edeae3]/75">Store Settings</b>. Publish it and you get a link to share with your customers.</>],
-                ["Fill your catalogue", <>Open <b className="text-[#edeae3]/75">Library</b> to see Spattoo&apos;s cakes and move the ones you want into your <b className="text-[#edeae3]/75">Catalogue</b>. Nothing is offered until you choose it.</>],
+                /* ⚠️ THE CATALOGUE COMES FIRST BECAUSE THE STORE IS EMPTY WITHOUT IT. Sandeep:
+                   "most importantly catalogue and how customers can see your cakes". These are one
+                   chain, not three errands — choose what you sell, then publish the page that
+                   shows it — and listing the store first described a shopfront with nothing in it.
+                   Hours and delivery came out: true, but nobody opens a new app to set their
+                   opening time, and a list that leads with housekeeping reads as housekeeping. */
+                ["Choose the cakes you sell", <>Open <b className="text-[#edeae3]/75">Library</b> for Spattoo&apos;s cakes and move the ones you want into your <b className="text-[#edeae3]/75">Catalogue</b>. Nothing is offered until you choose it.</>],
+                ["Put them in front of customers", <>Your catalogue is what they browse. Publish your store from <b className="text-[#edeae3]/75">Store Settings</b> and you get a link to share with them.</>],
                 ["Design your first cake", <>The 3D designer is the whole product. Start from a template or an empty tier.</>],
               ].map(([title, body], i) => (
                 <li key={i} className="flex gap-3">
