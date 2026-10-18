@@ -1581,13 +1581,25 @@ function SetupBaker({
                    shows it — and listing the store first described a shopfront with nothing in it.
                    Hours and delivery came out: true, but nobody opens a new app to set their
                    opening time, and a list that leads with housekeeping reads as housekeeping. */
-                ["Choose the cakes you sell", <>Open <b className="text-[#edeae3]/75">Library</b> for Spattoo&apos;s cakes and move the ones you want into your <b className="text-[#edeae3]/75">Catalogue</b>. Nothing is offered until you choose it.</>],
+                /* ⚠️ THIS SENTENCE ALREADY EXISTS IN THE PRODUCT, and it is Sandeep's own words:
+                   "Create your catalogue by selecting cakes from Library or upload your own. Your
+                   customers can see your catalogue." It is the Catalogue flyout's label and empty
+                   state (CakeDesigner.jsx), pinned by a test — and its history is that a previous
+                   version of me kept only the upload half: *"altering the sentence is fine but
+                   completely skipping a part is not acceptable."* So this screen says the same
+                   thing in the same vocabulary rather than inventing a fourth wording for the
+                   first job a baker is given.
+                   ⚠️ AND "UPLOAD YOUR OWN" IS A REAL DOOR, not a nicety — the Catalogue flyout ends
+                   in two equal buttons, Choose from Library and Upload a cake photo, deliberately
+                   of equal weight because "a catalogue is stocked from the Library or from a
+                   photograph and nothing makes one the lesser path". */
+                ["Create your catalogue", <>Select cakes from <b className="text-[#edeae3]/75">Library</b> — Spattoo&apos;s 3D designs — or upload photos of cakes you have already made. Your customers see your catalogue on your published store.</>],
                 /* ⚠️ "SET UP" IS THE INSTRUCTION, and it went missing once already. Rewriting this
                    list around the catalogue, the heading became "Put them in front of customers" —
                    a description of the OUTCOME, with only "publish" left of the thing the baker is
                    actually being asked to do. Publishing is the last click of a screen they have
                    not opened yet; setting it up is the work. Both are named now, in that order. */
-                ["Set up your store", <>Your catalogue is what customers browse there. Finish it in <b className="text-[#edeae3]/75">Store Settings</b>, publish, and you get a link to share with them.</>],
+                ["Set up your store", <>Finish it in <b className="text-[#edeae3]/75">Store Settings</b>, publish, and you get a link to share with your customers.</>],
                 /* ⚠️ THIS SAID "The 3D designer is the whole product", WHICH I MADE UP and which
                    is not true — orders, the catalogue, the storefront and the chef's desk are not
                    the designer. It was also the same flourish I had just removed from the plan
