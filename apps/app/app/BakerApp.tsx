@@ -1551,13 +1551,18 @@ function SetupBaker({
                 GRANT: "Public storefront → not a differentiator; Spark has it", and Spark's
                 order cap is null. A new baker was being told to pay for what they had just been
                 given, on the screen that gave it to them.
-                What Spark really is, per its own bullets: everything, for 30 days. What a paid
-                plan adds is time, credits, seats and support — so that is what the sentence
-                points at. */}
+                What a paid plan adds is time, credits, seats and support — so that is what the
+                sentence points at.
+                ⚠️ AND IT SAYS "FREE TO TRY", NOT "EVERYTHING". Sandeep: "lets not sound over
+                promising". The plan's own tagline in subscription_plans is still "Everything, free
+                for 30 days" (migration 048) and the marketing page sells it that way; this is the
+                screen a baker reads AFTER deciding, where a superlative buys nothing and sets up
+                the first disappointment. The three things named below it are the claims that have
+                to be true, and each one is. */}
             <p className="mt-2 text-sm leading-relaxed text-[#edeae3]/55">
-              You&apos;re on <b className="text-[#edeae3]/80">Spark — everything, free for 30 days</b>. Your
-              storefront, the 3D designer and unlimited orders are all included. After that you pick a
-              plan from <b className="text-[#edeae3]/80">Billing</b>.
+              You&apos;re on <b className="text-[#edeae3]/80">Spark — free to try for 30 days</b>. Your
+              storefront, the 3D designer and unlimited orders are included. After that you pick a plan
+              from <b className="text-[#edeae3]/80">Billing</b>.
             </p>
 
             {/* ── What to do once you are inside ───────────────────────────────────────────────
