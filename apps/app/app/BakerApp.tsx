@@ -1588,7 +1588,18 @@ function SetupBaker({
                    actually being asked to do. Publishing is the last click of a screen they have
                    not opened yet; setting it up is the work. Both are named now, in that order. */
                 ["Set up your store", <>Your catalogue is what customers browse there. Finish it in <b className="text-[#edeae3]/75">Store Settings</b>, publish, and you get a link to share with them.</>],
-                ["Design your first cake", <>The 3D designer is the whole product. Start from a template or an empty tier.</>],
+                /* ⚠️ THIS SAID "The 3D designer is the whole product", WHICH I MADE UP and which
+                   is not true — orders, the catalogue, the storefront and the chef's desk are not
+                   the designer. It was also the same flourish I had just removed from the plan
+                   line one commit earlier, which is how a sentence nobody asked for survives: it
+                   reads like enthusiasm rather than a claim. A step tells you what to do and where
+                   to start; it does not characterise the product.
+                   ⚠️ AND THE REPLACEMENT WAS WRONG ON ITS FIRST DRAFT TOO — I wrote "save it to
+                   your Catalogue", which is not where it goes. "Save as Template" puts a design in
+                   the LIBRARY, alongside Spattoo's cakes ("Library is everything this baker could
+                   sell — Spattoo's published cakes and their own saved designs, on one shelf"), and
+                   choosing it into the Catalogue is the separate act this whole list is about. */
+                ["Design your first cake", <>Start from a template or an empty tier. Save it and it joins your <b className="text-[#edeae3]/75">Library</b>, ready to move into the catalogue like any other.</>],
               ].map(([title, body], i) => (
                 <li key={i} className="flex gap-3">
                   {/* A numbered dot per step: this is what is COMING, not a progress bar of what
