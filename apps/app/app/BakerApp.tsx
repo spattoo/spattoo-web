@@ -86,6 +86,9 @@ export default function BakerApp() {
   // profile fetch 404s ("No baker account found"); route them to setup instead of
   // hanging on "Loading your shop…".
   const [needsSetup, setNeedsSetup] = useState(false);
+  // Proved in THIS session, or re-read from the server by the step itself on mount. Not persisted
+  // here: the proof lives in a row with an expiry, and a flag in the page would outlive it.
+  const [phoneVerified, setPhoneVerified] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   // Legal docs (ToS/Privacy) whose current version this baker hasn't accepted → show the
   // first-login acceptance gate before the app. [] until Layer 1 is published, so dormant
@@ -185,6 +188,22 @@ export default function BakerApp() {
     return <SetStaffPassword supabase={supabase} email={session.user.email ?? ""} onSignOut={() => supabase.auth.signOut()} />;
   }
   if (needsSetup) {
+    /* ⚠️ THE NUMBER IS PROVED BEFORE BRANDING, AS ITS OWN STEP. The server refuses
+       POST /api/bakers/self without a matching proof (code "phone_unverified"), so this is the
+       screen that makes that refusal reachable rather than a dead end — and it is deliberately not
+       a field inside SetupBaker: branding is a series of optional choices, this is a door. */
+    if (!phoneVerified) {
+      const meta = (session.user.user_metadata ?? {}) as { phone?: string; phone_country?: string };
+      return (
+        <VerifyPhone
+          api={api}
+          metaPhone={meta.phone ?? ""}
+          metaCountry={meta.phone_country ?? "IN"}
+          onVerified={() => setPhoneVerified(true)}
+          onSignOut={() => supabase.auth.signOut()}
+        />
+      );
+    }
     return (
       <SetupBaker
         api={api}
@@ -1159,6 +1178,157 @@ function AcceptTerms({
 // plan (step 2, no charge), and — ONLY if the plan includes a storefront — adds a
 // logo (step 3) then storefront details (step 4). Logo/storefront steps are
 // skippable. The slug is generated server-side, so there's no slug UI.
+/* ── Step zero: prove the number ──────────────────────────────────────────────────────────────
+ *
+ * ⚠️ ITS OWN SCREEN, NOT A FIELD INSIDE BRAND SETUP. Sandeep: "lets add one more step before
+ * branding.. not ideal to mix verification with branding". They are different kinds of act —
+ * branding is a series of choices you can skip and come back to, this is a door that either opens
+ * or does not — and a blocking proof sitting among optional fields reads as one more thing to fill
+ * in rather than the thing standing between you and the rest of the app.
+ *
+ * ⚠️ AND IT IS WHERE A TYPO GETS FIXED. The number came from the signup form and has been written
+ * nowhere yet, so it is editable here. That matters more than it looks: `baker_appusers.phone` is
+ * unique across owner rows, so a mistyped number that belongs to a REAL person would occupy it,
+ * and the person it belongs to would later be told their own number is registered to another
+ * bakery. Nothing is claimed until a code comes back.
+ *
+ * ⚠️ WHY HERE AND NOT ON THE SIGNUP FORM: there is no session until the email link is confirmed,
+ * so an endpoint reachable from that form would be a public one that spends an SMS per call.
+ */
+function VerifyPhone({
+  api, metaPhone, metaCountry, onVerified, onSignOut,
+}: {
+  api: ReturnType<typeof makeBakerApiClient>;
+  metaPhone: string;
+  metaCountry: string;
+  onVerified: () => void;
+  onSignOut: () => void;
+}) {
+  const [phone, setPhone] = useState(metaPhone);
+  const [code, setCode] = useState("");
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  // Asked once, before anything is sent: a baker who proved this number and then refreshed the tab
+  // must not be made to spend another message telling us what we already know.
+  useEffect(() => {
+    let alive = true;
+    api.signupPhoneStatus()
+      .then((r: { verified?: boolean }) => { if (alive && r?.verified) onVerified(); })
+      .catch(() => { /* unreachable status is not a reason to block the step */ })
+      .finally(() => { if (alive) setChecking(false); });
+    return () => { alive = false; };
+    // Once, on mount: re-running it on every keystroke would ask the server about a number the
+    // baker is still typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const phoneValid = phone.trim().length > 0
+    && isValidPhoneNumber(phone.trim(), metaCountry as CountryCode);
+
+  async function send() {
+    setBusy(true); setErr(null);
+    try {
+      const r = await api.signupPhoneStart(phone.trim(), metaCountry);
+      setSentTo((r as { to?: string }).to ?? null);
+      setCode("");
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirm() {
+    setBusy(true); setErr(null);
+    try {
+      await api.signupPhoneConfirm(code.trim());
+      onVerified();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (checking) return <AuthShell><div className={AUTH_CARD}><p className="text-sm text-[#edeae3]/55">One moment…</p></div></AuthShell>;
+
+  return (
+    <AuthShell>
+      <div className={AUTH_CARD}>
+        <h1 className="text-2xl font-bold text-[#edeae3]">Verify your mobile number</h1>
+        <p className="mt-2 text-sm leading-relaxed text-[#edeae3]/55">
+          {sentTo
+            ? <>We texted a 6-digit code to <b className="text-[#edeae3]/80">{sentTo}</b>. It is good for 10 minutes.</>
+            : <>This is the number your customers&rsquo; order alerts come to, so we check it once before you go on.</>}
+        </p>
+
+        {!sentTo ? (
+          <>
+            <label className="mt-5 block text-xs text-[#edeae3]/75">Mobile number</label>
+            <input
+              type="tel"
+              inputMode="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+91 98765 43210"
+              className="mt-1.5 w-full rounded-xl bg-[#2a2a2a] px-4 py-2.5 text-sm text-[#edeae3] outline-none"
+              style={{ border: "1px solid rgba(255,255,255,0.14)" }}
+            />
+            {/* Changing it here is free; changing it after the baker exists needs the password and
+                another code. Said plainly, because the natural assumption is that signup fixed it. */}
+            <p className="mt-1.5 text-xs text-[#edeae3]/40">
+              Typed it wrong at signup? Correct it here — nothing is saved until the code comes back.
+            </p>
+            <button type="button" disabled={busy || !phoneValid} onClick={send}
+              className={`${AUTH_BTN} mt-5 w-full disabled:opacity-40`}>
+              {busy ? "Sending…" : "Send code"}
+            </button>
+          </>
+        ) : (
+          <>
+            <label className="mt-5 block text-xs text-[#edeae3]/75">6-digit code</label>
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              placeholder="123456"
+              className="mt-1.5 w-full rounded-xl bg-[#2a2a2a] px-4 py-2.5 text-center text-lg tracking-[0.4em] text-[#edeae3] outline-none"
+              style={{ border: "1px solid rgba(255,255,255,0.14)" }}
+            />
+            <button type="button" disabled={busy || code.length < 6} onClick={confirm}
+              className={`${AUTH_BTN} mt-5 w-full disabled:opacity-40`}>
+              {busy ? "Checking…" : "Verify and continue"}
+            </button>
+            {/* Both ways out of a wrong number: another code to the same one, or back to change it.
+                Without the second, a baker who mistyped is stuck resending to a number they cannot
+                reach — which is the whole failure this step exists to prevent. */}
+            <div className="mt-3 flex justify-between text-xs">
+              <button type="button" disabled={busy} onClick={send} className="text-[#edeae3]/55 underline">
+                Send it again
+              </button>
+              <button type="button" disabled={busy} onClick={() => { setSentTo(null); setCode(""); setErr(null); }}
+                className="text-[#edeae3]/55 underline">
+                Use a different number
+              </button>
+            </div>
+          </>
+        )}
+
+        {err && <p className="mt-3 text-sm text-[#ff9a9a]">{err}</p>}
+
+        <button type="button" onClick={onSignOut} className="mt-6 w-full text-xs text-[#edeae3]/40 underline">
+          Sign out
+        </button>
+      </div>
+    </AuthShell>
+  );
+}
+
 function SetupBaker({
   api, email, onDone, onSignOut,
 }: {
