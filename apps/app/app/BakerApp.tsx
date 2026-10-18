@@ -1545,10 +1545,19 @@ function SetupBaker({
         {step === "plan" && (
           <div>
             <h1 className="text-2xl font-bold text-[#edeae3]">You&apos;re all set</h1>
+            {/* ⚠️ THIS USED TO SELL BACK TWO THINGS SPARK ALREADY HAS. It read "when you want a
+                public storefront and unlimited orders, upgrade anytime" — both false since
+                migration 048, which found exactly this drift between what plans SAY and what they
+                GRANT: "Public storefront → not a differentiator; Spark has it", and Spark's
+                order cap is null. A new baker was being told to pay for what they had just been
+                given, on the screen that gave it to them.
+                What Spark really is, per its own bullets: everything, for 30 days. What a paid
+                plan adds is time, credits, seats and support — so that is what the sentence
+                points at. */}
             <p className="mt-2 text-sm leading-relaxed text-[#edeae3]/55">
-              You&apos;re starting on <b className="text-[#edeae3]/80">Spark — free for a month</b>. When you
-              want a public storefront and unlimited orders, upgrade anytime from{" "}
-              <b className="text-[#edeae3]/80">Billing</b>.
+              You&apos;re on <b className="text-[#edeae3]/80">Spark — everything, free for 30 days</b>. Your
+              storefront, the 3D designer and unlimited orders are all included. After that you pick a
+              plan from <b className="text-[#edeae3]/80">Billing</b>.
             </p>
 
             {/* ── What to do once you are inside ───────────────────────────────────────────────
@@ -1561,12 +1570,7 @@ function SetupBaker({
                 does not exist. */}
             <ol className="mt-5 flex flex-col gap-3">
               {[
-                /* ⚠️ "ONCE IT IS PUBLISHED", NOT "PUBLISH IT AND SHARE". Spark has
-                   has_storefront = false, and the customiser's own button reads "Upgrade to
-                   publish" on a locked plan — its comment: *"'Publish' that opens a paywall is a
-                   bait"*. So this says what the link IS and what unlocks it, and lets that screen
-                   name the upgrade at the moment they actually want it. */
-                ["Set up your store", <>Hours, delivery and how customers reach you — under <b className="text-[#edeae3]/75">Store Settings</b>. Once it&apos;s published you get a link to share with your customers.</>],
+                ["Set up your store", <>Hours, delivery and how customers reach you — under <b className="text-[#edeae3]/75">Store Settings</b>. Publish it and you get a link to share with your customers.</>],
                 ["Fill your catalogue", <>Open <b className="text-[#edeae3]/75">Library</b> to see Spattoo&apos;s cakes and move the ones you want into your <b className="text-[#edeae3]/75">Catalogue</b>. Nothing is offered until you choose it.</>],
                 ["Design your first cake", <>The 3D designer is the whole product. Start from a template or an empty tier.</>],
               ].map(([title, body], i) => (
