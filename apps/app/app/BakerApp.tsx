@@ -1577,7 +1577,12 @@ function SetupBaker({
                    Hours and delivery came out: true, but nobody opens a new app to set their
                    opening time, and a list that leads with housekeeping reads as housekeeping. */
                 ["Choose the cakes you sell", <>Open <b className="text-[#edeae3]/75">Library</b> for Spattoo&apos;s cakes and move the ones you want into your <b className="text-[#edeae3]/75">Catalogue</b>. Nothing is offered until you choose it.</>],
-                ["Put them in front of customers", <>Your catalogue is what they browse. Publish your store from <b className="text-[#edeae3]/75">Store Settings</b> and you get a link to share with them.</>],
+                /* ⚠️ "SET UP" IS THE INSTRUCTION, and it went missing once already. Rewriting this
+                   list around the catalogue, the heading became "Put them in front of customers" —
+                   a description of the OUTCOME, with only "publish" left of the thing the baker is
+                   actually being asked to do. Publishing is the last click of a screen they have
+                   not opened yet; setting it up is the work. Both are named now, in that order. */
+                ["Set up your store", <>Your catalogue is what customers browse there. Finish it in <b className="text-[#edeae3]/75">Store Settings</b>, publish, and you get a link to share with them.</>],
                 ["Design your first cake", <>The 3D designer is the whole product. Start from a template or an empty tier.</>],
               ].map(([title, body], i) => (
                 <li key={i} className="flex gap-3">
