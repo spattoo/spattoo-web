@@ -1546,13 +1546,42 @@ function SetupBaker({
           <div>
             <h1 className="text-2xl font-bold text-[#edeae3]">You&apos;re all set</h1>
             <p className="mt-2 text-sm leading-relaxed text-[#edeae3]/55">
-              You&apos;re starting on <b className="text-[#edeae3]/80">Spark — free for a month</b>. Explore the
-              full 3D designer and start taking orders, then decide. When you want a public storefront and
-              unlimited orders, upgrade anytime from <b className="text-[#edeae3]/80">Billing</b>.
+              You&apos;re starting on <b className="text-[#edeae3]/80">Spark — free for a month</b>. When you
+              want a public storefront and unlimited orders, upgrade anytime from{" "}
+              <b className="text-[#edeae3]/80">Billing</b>.
             </p>
+
+            {/* ── What to do once you are inside ───────────────────────────────────────────────
+                ⚠️ THE SECOND ONE IS THE ONE THAT MATTERS, and nothing used to say it. Since
+                2026-09-28 the Catalogue is OPT-IN — "nothing is offered until it is chosen"
+                (features/template-visibility.md) — so a baker who never opens the Library has an
+                empty catalogue and nothing to sell, with no screen anywhere explaining why.
+                ⚠️ The names are the rail's own: Store Settings, Library, Catalogue. Copy that
+                invents a friendlier word for a destination sends people looking for a button that
+                does not exist. */}
+            <ol className="mt-5 flex flex-col gap-3">
+              {[
+                ["Set up your store", <>Hours, delivery and how customers reach you — under <b className="text-[#edeae3]/75">Store Settings</b>.</>],
+                ["Fill your catalogue", <>Open <b className="text-[#edeae3]/75">Library</b> to see Spattoo&apos;s cakes and move the ones you want into your <b className="text-[#edeae3]/75">Catalogue</b>. Nothing is offered until you choose it.</>],
+                ["Design your first cake", <>The 3D designer is the whole product. Start from a template or an empty tier.</>],
+              ].map(([title, body], i) => (
+                <li key={i} className="flex gap-3">
+                  {/* A numbered dot per step: this is what is COMING, not a progress bar of what
+                      is done — the wizard's own progress sits at the top of the card and claiming
+                      the same shape twice for two different meanings is how both stop being read. */}
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#6b8f7e]/50 text-[11px] font-bold text-[#a8c5b5]">
+                    {i + 1}
+                  </span>
+                  <span className="text-sm leading-relaxed text-[#edeae3]/55">
+                    <b className="text-[#edeae3]/85">{title}</b> — {body}
+                  </span>
+                </li>
+              ))}
+            </ol>
+
             {err && <p className="mt-3 text-sm font-semibold text-[#ef9a9a]">{err}</p>}
             <button type="button" onClick={() => onDone()} disabled={busy} className={`${AUTH_BTN} mt-6`}>
-              Start designing →
+              Start →
             </button>
           </div>
         )}
