@@ -1470,20 +1470,35 @@ function SetupBaker({
   return (
     <AuthShell>
       <div className={AUTH_CARD}>
-        {/* Sign out — a subtle escape hatch, top-right (not competing with the step's primary CTA) */}
-        <div className="mb-3 flex justify-end">
-          <button type="button" onClick={onSignOut}
-            className="text-xs font-medium text-[#edeae3]/40 transition hover:text-[#edeae3]/80">
-            Sign out
-          </button>
-        </div>
-        {/* Progress */}
-        <div className="mb-5 flex items-center gap-1.5">
-          {steps.map((s, i) => (
-            <span key={s} className="h-1 flex-1 rounded-full transition-all"
-              style={{ backgroundColor: i <= stepIndex ? "#6b8f7e" : "rgba(237,234,227,0.15)" }} />
-          ))}
-        </div>
+        {/* ⚠️ NEITHER OF THESE BELONGS ON THE LAST STEP, and they fail for the same reason: by
+            then the wizard is over and the card is about what comes NEXT.
+
+            The bar is five segments, all filled, sitting directly above a numbered list of three —
+            two step-counts on one card, and the five wins because it looks like a progress bar.
+            Sandeep: "i cant see step 4 and 5 from screenshot". There is no step 4; he was reading
+            the bar as the list. A bar whose job is finished is not neutral, it competes.
+
+            And the sign-out is the same control he had removed from the verify step one screen
+            earlier — on a card that says "You're all set", the only two things to offer are what
+            to do and how to begin. */}
+        {step !== "plan" && (
+          <>
+            {/* Sign out — a subtle escape hatch, top-right (not competing with the step's primary CTA) */}
+            <div className="mb-3 flex justify-end">
+              <button type="button" onClick={onSignOut}
+                className="text-xs font-medium text-[#edeae3]/40 transition hover:text-[#edeae3]/80">
+                Sign out
+              </button>
+            </div>
+            {/* Progress */}
+            <div className="mb-5 flex items-center gap-1.5">
+              {steps.map((s, i) => (
+                <span key={s} className="h-1 flex-1 rounded-full transition-all"
+                  style={{ backgroundColor: i <= stepIndex ? "#6b8f7e" : "rgba(237,234,227,0.15)" }} />
+              ))}
+            </div>
+          </>
+        )}
 
         {step === "basics" && (
           <form onSubmit={createBaker}>
