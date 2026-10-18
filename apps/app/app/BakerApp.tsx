@@ -200,7 +200,6 @@ export default function BakerApp() {
           metaPhone={meta.phone ?? ""}
           metaCountry={meta.phone_country ?? "IN"}
           onVerified={() => setPhoneVerified(true)}
-          onSignOut={() => supabase.auth.signOut()}
         />
       );
     }
@@ -1195,14 +1194,19 @@ function AcceptTerms({
  * ⚠️ WHY HERE AND NOT ON THE SIGNUP FORM: there is no session until the email link is confirmed,
  * so an endpoint reachable from that form would be a public one that spends an SMS per call.
  */
+/* ⚠️ NO SIGN-OUT ON THIS SCREEN, and the screen AFTER it is why. Sandeep: "having a signout button
+   here does not make sense. user has not at least onboarded and singned in". He is describing how
+   it reads, and the app already agrees with him — SetupBaker, the next step, renders no sign-out at
+   all (it is even handed an onSignOut it never calls). Signing up, confirming an email and proving
+   a number is ONE act in the person's head; offering to undo an account they do not yet feel they
+   have is an exit from somewhere they have not arrived. */
 function VerifyPhone({
-  api, metaPhone, metaCountry, onVerified, onSignOut,
+  api, metaPhone, metaCountry, onVerified,
 }: {
   api: ReturnType<typeof makeBakerApiClient>;
   metaPhone: string;
   metaCountry: string;
   onVerified: () => void;
-  onSignOut: () => void;
 }) {
   const [phone, setPhone] = useState(metaPhone);
   const [code, setCode] = useState("");
@@ -1320,10 +1324,6 @@ function VerifyPhone({
         )}
 
         {err && <p className="mt-3 text-sm text-[#ff9a9a]">{err}</p>}
-
-        <button type="button" onClick={onSignOut} className="mt-6 w-full text-xs text-[#edeae3]/40 underline">
-          Sign out
-        </button>
       </div>
     </AuthShell>
   );
