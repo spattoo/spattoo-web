@@ -37,6 +37,44 @@ export const SHOW_SIGNIN = process.env.NEXT_PUBLIC_SHOW_SIGNIN === "true";
 // Baker signup entry — the app reveals its signup screen behind ?signup=1.
 export const SIGNUP_URL = `${APP_URL}/?signup=1`;
 
+/* ── Carrying a campaign across to the app ───────────────────────────────────────────────────────
+ *
+ * WhatsApp campaigns to scraped bakers (spattoo-leads) land here with UTMs, and GA4 counts those
+ * landings per campaign for free. What GA4 cannot tell us is the number the campaign is actually
+ * being judged on — how many of a 50-lead batch opened a bakery — because signup happens on
+ * ANOTHER ORIGIN (app.<domain>) behind an email confirmation and a phone OTP. The tag has to be
+ * handed over at the door or it is gone.
+ *
+ * ⚠️ `c` AND `s`, NOT THE WHOLE UTM SET. Only two things are worth carrying across an origin: which
+ * batch, and which channel. Forwarding every utm_* would widen what a stranger can write into our
+ * database for nothing — and the API narrows these to a short slug before storing them anyway.
+ *
+ * ⚠️ NARROWED HERE TOO, rather than trusting the API to be the only guard. This value is about to
+ * be put in a URL and then into the browser's own storage; a tag that is not a short lowercase slug
+ * is not one we sent, so it is dropped at the first opportunity rather than the last.
+ */
+const campaignTag = (v: string | null): string | null => {
+  const t = (v ?? "").trim().toLowerCase();
+  return /^[a-z0-9][a-z0-9_-]{0,63}$/.test(t) ? t : null;
+};
+
+export function signupUrl(search?: string): string {
+  // No window on the server, and a static render has no visitor to attribute — the plain URL is
+  // the honest answer there, and the client re-renders with the tag when it hydrates.
+  const q = search ?? (typeof window === "undefined" ? "" : window.location.search);
+  if (!q) return SIGNUP_URL;
+
+  const p = new URLSearchParams(q);
+  const campaign = campaignTag(p.get("utm_campaign") ?? p.get("c"));
+  const source   = campaignTag(p.get("utm_source") ?? p.get("s"));
+  if (!campaign && !source) return SIGNUP_URL;
+
+  const out = new URLSearchParams({ signup: "1" });
+  if (campaign) out.set("c", campaign);
+  if (source)   out.set("s", source);
+  return `${APP_URL}/?${out.toString()}`;
+}
+
 // Google Analytics 4 measurement id ("G-XXXXXXXXXX"). NEXT_PUBLIC_ because the tag
 // runs in the browser, and that is fine — a measurement id is meant to be seen and
 // authorises nothing. Like TURNSTILE_SITE_KEY above, nothing secret belongs here.

@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { SHOW_SIGNIN, SIGNUP_URL } from "../lib/domain";
+import { SHOW_SIGNIN } from "../lib/domain";
+import { useSignupUrl } from "../lib/useSignupUrl";
 import { BLOG_IN_NAV } from "../lib/blog";
 
 // ⚠️ Hrefs are ROOT-RELATIVE ("/#about"), not bare fragments ("#about"), and must stay
@@ -23,6 +24,8 @@ const links = [
 ].filter((l) => !l.blog || BLOG_IN_NAV);
 
 export default function MobileNav() {
+  // Carries the campaign that brought them here across to the app — see lib/useSignupUrl.
+  const signupHref = useSignupUrl();
   const [open, setOpen] = useState(false);
 
   // Lock body scroll when open
@@ -118,7 +121,7 @@ export default function MobileNav() {
                   reachable from anywhere is the point of it. */}
               {SHOW_SIGNIN && (
                 <motion.a
-                  href={SIGNUP_URL}
+                  href={signupHref}
                   onClick={() => setOpen(false)}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}

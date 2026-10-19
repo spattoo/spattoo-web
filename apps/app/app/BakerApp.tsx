@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase } from "../lib/supabase";
+import { captureSignupAttribution, readSignupAttribution, clearSignupAttribution } from "../lib/signupAttribution";
 import { MARKETING_URL } from "../lib/domain";
 import EnableNotifications from "./EnableNotifications";
 import { makeBakerApiClient } from "../lib/bakerApi";
@@ -323,6 +324,12 @@ function AuthScreen({ supabase }: { supabase: ReturnType<typeof getSupabase> }) 
     // ?signup=1 (the marketing "Get started" CTA) opens straight on the create-
     // account form — people who clicked "Get started" want to sign up, not log in.
     // They can still switch to sign-in from there ("Already have an account?").
+    //
+    // ⚠️ AND THE CAMPAIGN COMES OFF THE URL HERE, at the same moment and for the same reason: this
+    // is the only point in the journey where it is still in the address bar. An email confirmation
+    // and a phone OTP both navigate before the baker row is created, so a tag left on the URL is
+    // gone by then. See lib/signupAttribution.
+    captureSignupAttribution();
     const wantsSignup = new URLSearchParams(window.location.search).get("signup") === "1";
     setSignupAllowed(wantsSignup);
     if (wantsSignup) setMode("signup");
@@ -1377,7 +1384,18 @@ function SetupBaker({
     if (!name.trim()) return;
     setBusy(true); setErr(null);
     try {
-      await api.createBakerSelf({ name: name.trim() });
+      /* Where they came from, if anything survived the journey (lib/signupAttribution). Sent with
+         the one request that creates the row, because that is the only moment it can be recorded —
+         the column is written at birth and has no update path (migration 131). */
+      const attribution = readSignupAttribution();
+      await api.createBakerSelf({
+        name: name.trim(),
+        signup_source:   attribution.source,
+        signup_campaign: attribution.campaign,
+      });
+      // It is on the row now; keeping it would let a SECOND bakery made later in this browser
+      // inherit a campaign it never came from.
+      clearSignupAttribution();
       // Record the agreement ticked at signup, now that the baker exists and the user is
       // authed (source 'signup'). Best-effort: never block onboarding — if it fails, the
       // first-login gate is the backstop. No-op server-side until the docs are published.

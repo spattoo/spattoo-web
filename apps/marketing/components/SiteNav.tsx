@@ -4,10 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import MobileNav from "./MobileNav";
-import { APP_URL, SHOW_SIGNIN, SIGNUP_URL } from "../lib/domain";
+import { APP_URL, SHOW_SIGNIN } from "../lib/domain";
+import { useSignupUrl } from "../lib/useSignupUrl";
 import { BLOG_IN_NAV } from "../lib/blog";
 
 export default function SiteNav() {
+  // Carries the campaign that brought them here across to the app — see lib/useSignupUrl.
+  const signupHref = useSignupUrl();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -69,7 +72,7 @@ export default function SiteNav() {
         )}
         {SHOW_SIGNIN && (
           <a
-            href={SIGNUP_URL}
+            href={signupHref}
             className="inline-flex px-6 py-2.5 rounded-full bg-[#3d5247] text-[#edeae3] text-sm font-medium hover:bg-[#4a6357] transition-all"
           >
             Get started
