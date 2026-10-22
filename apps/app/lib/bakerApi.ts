@@ -683,6 +683,21 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
       publicGet(`/api/bakers/slug-available?slug=${encodeURIComponent(slug)}`),
     createBakerSelf: (payload: unknown) =>
       authFetch("/api/bakers/self", { method: "POST", body: JSON.stringify(payload) }),
+
+    /* ── Proving the number BEFORE the baker row exists ────────────────────────
+     * The account screen's change flow cannot serve this moment — it looks up an owner row that
+     * does not exist yet — so onboarding has its own pair. `status` is asked on mount so a reload
+     * does not re-text a number already proved; `createBakerSelf` above refuses with
+     * code "phone_unverified" if it was not. */
+    signupPhoneStatus: () => authGet("/api/bakers/self/phone/status"),
+    signupPhoneStart: (phone: string, country: string) =>
+      authFetch("/api/bakers/self/phone/start", {
+        method: "POST", body: JSON.stringify({ phone, country }),
+      }),
+    signupPhoneConfirm: (code: string) =>
+      authFetch("/api/bakers/self/phone/confirm", {
+        method: "POST", body: JSON.stringify({ code }),
+      }),
     // Onboarding wizard plan step — sets the plan WITHOUT charge (dev/no-payment).
     selectPlan: (plan: string) =>
       authFetch("/api/baker/plan/select", { method: "POST", body: JSON.stringify({ plan }) }),

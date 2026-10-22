@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase } from "../lib/supabase";
+import { captureSignupAttribution, readSignupAttribution, clearSignupAttribution } from "../lib/signupAttribution";
 import { MARKETING_URL } from "../lib/domain";
 import EnableNotifications from "./EnableNotifications";
 import { makeBakerApiClient } from "../lib/bakerApi";
@@ -86,6 +87,9 @@ export default function BakerApp() {
   // profile fetch 404s ("No baker account found"); route them to setup instead of
   // hanging on "Loading your shop…".
   const [needsSetup, setNeedsSetup] = useState(false);
+  // Proved in THIS session, or re-read from the server by the step itself on mount. Not persisted
+  // here: the proof lives in a row with an expiry, and a flag in the page would outlive it.
+  const [phoneVerified, setPhoneVerified] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   // Legal docs (ToS/Privacy) whose current version this baker hasn't accepted → show the
   // first-login acceptance gate before the app. [] until Layer 1 is published, so dormant
@@ -185,6 +189,21 @@ export default function BakerApp() {
     return <SetStaffPassword supabase={supabase} email={session.user.email ?? ""} onSignOut={() => supabase.auth.signOut()} />;
   }
   if (needsSetup) {
+    /* ⚠️ THE NUMBER IS PROVED BEFORE BRANDING, AS ITS OWN STEP. The server refuses
+       POST /api/bakers/self without a matching proof (code "phone_unverified"), so this is the
+       screen that makes that refusal reachable rather than a dead end — and it is deliberately not
+       a field inside SetupBaker: branding is a series of optional choices, this is a door. */
+    if (!phoneVerified) {
+      const meta = (session.user.user_metadata ?? {}) as { phone?: string; phone_country?: string };
+      return (
+        <VerifyPhone
+          api={api}
+          metaPhone={meta.phone ?? ""}
+          metaCountry={meta.phone_country ?? "IN"}
+          onVerified={() => setPhoneVerified(true)}
+        />
+      );
+    }
     return (
       <SetupBaker
         api={api}
@@ -305,6 +324,12 @@ function AuthScreen({ supabase }: { supabase: ReturnType<typeof getSupabase> }) 
     // ?signup=1 (the marketing "Get started" CTA) opens straight on the create-
     // account form — people who clicked "Get started" want to sign up, not log in.
     // They can still switch to sign-in from there ("Already have an account?").
+    //
+    // ⚠️ AND THE CAMPAIGN COMES OFF THE URL HERE, at the same moment and for the same reason: this
+    // is the only point in the journey where it is still in the address bar. An email confirmation
+    // and a phone OTP both navigate before the baker row is created, so a tag left on the URL is
+    // gone by then. See lib/signupAttribution.
+    captureSignupAttribution();
     const wantsSignup = new URLSearchParams(window.location.search).get("signup") === "1";
     setSignupAllowed(wantsSignup);
     if (wantsSignup) setMode("signup");
@@ -1159,6 +1184,158 @@ function AcceptTerms({
 // plan (step 2, no charge), and — ONLY if the plan includes a storefront — adds a
 // logo (step 3) then storefront details (step 4). Logo/storefront steps are
 // skippable. The slug is generated server-side, so there's no slug UI.
+/* ── Step zero: prove the number ──────────────────────────────────────────────────────────────
+ *
+ * ⚠️ ITS OWN SCREEN, NOT A FIELD INSIDE BRAND SETUP. Sandeep: "lets add one more step before
+ * branding.. not ideal to mix verification with branding". They are different kinds of act —
+ * branding is a series of choices you can skip and come back to, this is a door that either opens
+ * or does not — and a blocking proof sitting among optional fields reads as one more thing to fill
+ * in rather than the thing standing between you and the rest of the app.
+ *
+ * ⚠️ AND IT IS WHERE A TYPO GETS FIXED. The number came from the signup form and has been written
+ * nowhere yet, so it is editable here. That matters more than it looks: `baker_appusers.phone` is
+ * unique across owner rows, so a mistyped number that belongs to a REAL person would occupy it,
+ * and the person it belongs to would later be told their own number is registered to another
+ * bakery. Nothing is claimed until a code comes back.
+ *
+ * ⚠️ WHY HERE AND NOT ON THE SIGNUP FORM: there is no session until the email link is confirmed,
+ * so an endpoint reachable from that form would be a public one that spends an SMS per call.
+ */
+/* ⚠️ NO SIGN-OUT ON THIS SCREEN, and the screen AFTER it is why. Sandeep: "having a signout button
+   here does not make sense. user has not at least onboarded and singned in". He is describing how
+   it reads, and the app already agrees with him — SetupBaker, the next step, renders no sign-out at
+   all (it is even handed an onSignOut it never calls). Signing up, confirming an email and proving
+   a number is ONE act in the person's head; offering to undo an account they do not yet feel they
+   have is an exit from somewhere they have not arrived. */
+function VerifyPhone({
+  api, metaPhone, metaCountry, onVerified,
+}: {
+  api: ReturnType<typeof makeBakerApiClient>;
+  metaPhone: string;
+  metaCountry: string;
+  onVerified: () => void;
+}) {
+  const [phone, setPhone] = useState(metaPhone);
+  const [code, setCode] = useState("");
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  // Asked once, before anything is sent: a baker who proved this number and then refreshed the tab
+  // must not be made to spend another message telling us what we already know.
+  useEffect(() => {
+    let alive = true;
+    api.signupPhoneStatus()
+      .then((r: { verified?: boolean }) => { if (alive && r?.verified) onVerified(); })
+      .catch(() => { /* unreachable status is not a reason to block the step */ })
+      .finally(() => { if (alive) setChecking(false); });
+    return () => { alive = false; };
+    // Once, on mount: re-running it on every keystroke would ask the server about a number the
+    // baker is still typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const phoneValid = phone.trim().length > 0
+    && isValidPhoneNumber(phone.trim(), metaCountry as CountryCode);
+
+  async function send() {
+    setBusy(true); setErr(null);
+    try {
+      const r = await api.signupPhoneStart(phone.trim(), metaCountry);
+      setSentTo((r as { to?: string }).to ?? null);
+      setCode("");
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirm() {
+    setBusy(true); setErr(null);
+    try {
+      await api.signupPhoneConfirm(code.trim());
+      onVerified();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (checking) return <AuthShell><div className={AUTH_CARD}><p className="text-sm text-[#edeae3]/55">One moment…</p></div></AuthShell>;
+
+  return (
+    <AuthShell>
+      <div className={AUTH_CARD}>
+        <h1 className="text-2xl font-bold text-[#edeae3]">Verify your mobile number</h1>
+        <p className="mt-2 text-sm leading-relaxed text-[#edeae3]/55">
+          {sentTo
+            ? <>We texted a 6-digit code to <b className="text-[#edeae3]/80">{sentTo}</b>. It is good for 10 minutes.</>
+            : <>This is the number your customers&rsquo; order alerts come to, so we check it once before you go on.</>}
+        </p>
+
+        {!sentTo ? (
+          <>
+            <label className="mt-5 block text-xs text-[#edeae3]/75">Mobile number</label>
+            <input
+              type="tel"
+              inputMode="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+91 98765 43210"
+              className="mt-1.5 w-full rounded-xl bg-[#2a2a2a] px-4 py-2.5 text-sm text-[#edeae3] outline-none"
+              style={{ border: "1px solid rgba(255,255,255,0.14)" }}
+            />
+            {/* Changing it here is free; changing it after the baker exists needs the password and
+                another code. Said plainly, because the natural assumption is that signup fixed it. */}
+            <p className="mt-1.5 text-xs text-[#edeae3]/40">
+              Typed it wrong at signup? Correct it here — nothing is saved until the code comes back.
+            </p>
+            <button type="button" disabled={busy || !phoneValid} onClick={send}
+              className={`${AUTH_BTN} mt-5 w-full disabled:opacity-40`}>
+              {busy ? "Sending…" : "Send code"}
+            </button>
+          </>
+        ) : (
+          <>
+            <label className="mt-5 block text-xs text-[#edeae3]/75">6-digit code</label>
+            <input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              placeholder="123456"
+              className="mt-1.5 w-full rounded-xl bg-[#2a2a2a] px-4 py-2.5 text-center text-lg tracking-[0.4em] text-[#edeae3] outline-none"
+              style={{ border: "1px solid rgba(255,255,255,0.14)" }}
+            />
+            <button type="button" disabled={busy || code.length < 6} onClick={confirm}
+              className={`${AUTH_BTN} mt-5 w-full disabled:opacity-40`}>
+              {busy ? "Checking…" : "Verify and continue"}
+            </button>
+            {/* Both ways out of a wrong number: another code to the same one, or back to change it.
+                Without the second, a baker who mistyped is stuck resending to a number they cannot
+                reach — which is the whole failure this step exists to prevent. */}
+            <div className="mt-3 flex justify-between text-xs">
+              <button type="button" disabled={busy} onClick={send} className="text-[#edeae3]/55 underline">
+                Send it again
+              </button>
+              <button type="button" disabled={busy} onClick={() => { setSentTo(null); setCode(""); setErr(null); }}
+                className="text-[#edeae3]/55 underline">
+                Use a different number
+              </button>
+            </div>
+          </>
+        )}
+
+        {err && <p className="mt-3 text-sm text-[#ff9a9a]">{err}</p>}
+      </div>
+    </AuthShell>
+  );
+}
+
 function SetupBaker({
   api, email, onDone, onSignOut,
 }: {
@@ -1207,7 +1384,18 @@ function SetupBaker({
     if (!name.trim()) return;
     setBusy(true); setErr(null);
     try {
-      await api.createBakerSelf({ name: name.trim() });
+      /* Where they came from, if anything survived the journey (lib/signupAttribution). Sent with
+         the one request that creates the row, because that is the only moment it can be recorded —
+         the column is written at birth and has no update path (migration 131). */
+      const attribution = readSignupAttribution();
+      await api.createBakerSelf({
+        name: name.trim(),
+        signup_source:   attribution.source,
+        signup_campaign: attribution.campaign,
+      });
+      // It is on the row now; keeping it would let a SECOND bakery made later in this browser
+      // inherit a campaign it never came from.
+      clearSignupAttribution();
       // Record the agreement ticked at signup, now that the baker exists and the user is
       // authed (source 'signup'). Best-effort: never block onboarding — if it fails, the
       // first-login gate is the backstop. No-op server-side until the docs are published.
@@ -1300,20 +1488,35 @@ function SetupBaker({
   return (
     <AuthShell>
       <div className={AUTH_CARD}>
-        {/* Sign out — a subtle escape hatch, top-right (not competing with the step's primary CTA) */}
-        <div className="mb-3 flex justify-end">
-          <button type="button" onClick={onSignOut}
-            className="text-xs font-medium text-[#edeae3]/40 transition hover:text-[#edeae3]/80">
-            Sign out
-          </button>
-        </div>
-        {/* Progress */}
-        <div className="mb-5 flex items-center gap-1.5">
-          {steps.map((s, i) => (
-            <span key={s} className="h-1 flex-1 rounded-full transition-all"
-              style={{ backgroundColor: i <= stepIndex ? "#6b8f7e" : "rgba(237,234,227,0.15)" }} />
-          ))}
-        </div>
+        {/* ⚠️ NEITHER OF THESE BELONGS ON THE LAST STEP, and they fail for the same reason: by
+            then the wizard is over and the card is about what comes NEXT.
+
+            The bar is five segments, all filled, sitting directly above a numbered list of three —
+            two step-counts on one card, and the five wins because it looks like a progress bar.
+            Sandeep: "i cant see step 4 and 5 from screenshot". There is no step 4; he was reading
+            the bar as the list. A bar whose job is finished is not neutral, it competes.
+
+            And the sign-out is the same control he had removed from the verify step one screen
+            earlier — on a card that says "You're all set", the only two things to offer are what
+            to do and how to begin. */}
+        {step !== "plan" && (
+          <>
+            {/* Sign out — a subtle escape hatch, top-right (not competing with the step's primary CTA) */}
+            <div className="mb-3 flex justify-end">
+              <button type="button" onClick={onSignOut}
+                className="text-xs font-medium text-[#edeae3]/40 transition hover:text-[#edeae3]/80">
+                Sign out
+              </button>
+            </div>
+            {/* Progress */}
+            <div className="mb-5 flex items-center gap-1.5">
+              {steps.map((s, i) => (
+                <span key={s} className="h-1 flex-1 rounded-full transition-all"
+                  style={{ backgroundColor: i <= stepIndex ? "#6b8f7e" : "rgba(237,234,227,0.15)" }} />
+              ))}
+            </div>
+          </>
+        )}
 
         {step === "basics" && (
           <form onSubmit={createBaker}>
@@ -1375,14 +1578,91 @@ function SetupBaker({
         {step === "plan" && (
           <div>
             <h1 className="text-2xl font-bold text-[#edeae3]">You&apos;re all set</h1>
+            {/* ⚠️ THIS USED TO SELL BACK TWO THINGS SPARK ALREADY HAS. It read "when you want a
+                public storefront and unlimited orders, upgrade anytime" — both false since
+                migration 048, which found exactly this drift between what plans SAY and what they
+                GRANT: "Public storefront → not a differentiator; Spark has it", and Spark's
+                order cap is null. A new baker was being told to pay for what they had just been
+                given, on the screen that gave it to them.
+                What a paid plan adds is time, credits, seats and support — so that is what the
+                sentence points at.
+                ⚠️ AND IT SAYS "FREE TO TRY", NOT "EVERYTHING". Sandeep: "lets not sound over
+                promising". The plan's own tagline in subscription_plans is still "Everything, free
+                for 30 days" (migration 048) and the marketing page sells it that way; this is the
+                screen a baker reads AFTER deciding, where a superlative buys nothing and sets up
+                the first disappointment. The three things named below it are the claims that have
+                to be true, and each one is. */}
             <p className="mt-2 text-sm leading-relaxed text-[#edeae3]/55">
-              You&apos;re starting on <b className="text-[#edeae3]/80">Spark — free for a month</b>. Explore the
-              full 3D designer and start taking orders, then decide. When you want a public storefront and
-              unlimited orders, upgrade anytime from <b className="text-[#edeae3]/80">Billing</b>.
+              You&apos;re on <b className="text-[#edeae3]/80">Spark — free to try for 30 days</b>. Your
+              storefront, the 3D designer and unlimited orders are included. After that you pick a plan
+              from <b className="text-[#edeae3]/80">Billing</b>.
             </p>
+
+            {/* ── What to do once you are inside ───────────────────────────────────────────────
+                ⚠️ THE SECOND ONE IS THE ONE THAT MATTERS, and nothing used to say it. Since
+                2026-09-28 the Catalogue is OPT-IN — "nothing is offered until it is chosen"
+                (features/template-visibility.md) — so a baker who never opens the Library has an
+                empty catalogue and nothing to sell, with no screen anywhere explaining why.
+                ⚠️ The names are the rail's own: Store Settings, Library, Catalogue. Copy that
+                invents a friendlier word for a destination sends people looking for a button that
+                does not exist. */}
+            <ol className="mt-5 flex flex-col gap-3">
+              {[
+                /* ⚠️ THE CATALOGUE COMES FIRST BECAUSE THE STORE IS EMPTY WITHOUT IT. Sandeep:
+                   "most importantly catalogue and how customers can see your cakes". These are one
+                   chain, not three errands — choose what you sell, then publish the page that
+                   shows it — and listing the store first described a shopfront with nothing in it.
+                   Hours and delivery came out: true, but nobody opens a new app to set their
+                   opening time, and a list that leads with housekeeping reads as housekeeping. */
+                /* ⚠️ THIS SENTENCE ALREADY EXISTS IN THE PRODUCT, and it is Sandeep's own words:
+                   "Create your catalogue by selecting cakes from Library or upload your own. Your
+                   customers can see your catalogue." It is the Catalogue flyout's label and empty
+                   state (CakeDesigner.jsx), pinned by a test — and its history is that a previous
+                   version of me kept only the upload half: *"altering the sentence is fine but
+                   completely skipping a part is not acceptable."* So this screen says the same
+                   thing in the same vocabulary rather than inventing a fourth wording for the
+                   first job a baker is given.
+                   ⚠️ AND "UPLOAD YOUR OWN" IS A REAL DOOR, not a nicety — the Catalogue flyout ends
+                   in two equal buttons, Choose from Library and Upload a cake photo, deliberately
+                   of equal weight because "a catalogue is stocked from the Library or from a
+                   photograph and nothing makes one the lesser path". */
+                ["Create your catalogue", <>Select cakes from <b className="text-[#edeae3]/75">Library</b> — Spattoo&apos;s 3D designs — or upload photos of cakes you have already made. Your customers see your catalogue on your published store.</>],
+                /* ⚠️ "SET UP" IS THE INSTRUCTION, and it went missing once already. Rewriting this
+                   list around the catalogue, the heading became "Put them in front of customers" —
+                   a description of the OUTCOME, with only "publish" left of the thing the baker is
+                   actually being asked to do. Publishing is the last click of a screen they have
+                   not opened yet; setting it up is the work. Both are named now, in that order. */
+                ["Set up your store", <>Finish it in <b className="text-[#edeae3]/75">Store Settings</b>, publish, and you get a link to share with your customers.</>],
+                /* ⚠️ THIS SAID "The 3D designer is the whole product", WHICH I MADE UP and which
+                   is not true — orders, the catalogue, the storefront and the chef's desk are not
+                   the designer. It was also the same flourish I had just removed from the plan
+                   line one commit earlier, which is how a sentence nobody asked for survives: it
+                   reads like enthusiasm rather than a claim. A step tells you what to do and where
+                   to start; it does not characterise the product.
+                   ⚠️ AND THE REPLACEMENT WAS WRONG ON ITS FIRST DRAFT TOO — I wrote "save it to
+                   your Catalogue", which is not where it goes. "Save as Template" puts a design in
+                   the LIBRARY, alongside Spattoo's cakes ("Library is everything this baker could
+                   sell — Spattoo's published cakes and their own saved designs, on one shelf"), and
+                   choosing it into the Catalogue is the separate act this whole list is about. */
+                ["Design your first cake", <>Start from a template or an empty tier. Save it and it joins your <b className="text-[#edeae3]/75">Library</b>, ready to move into the catalogue like any other.</>],
+              ].map(([title, body], i) => (
+                <li key={i} className="flex gap-3">
+                  {/* A numbered dot per step: this is what is COMING, not a progress bar of what
+                      is done — the wizard's own progress sits at the top of the card and claiming
+                      the same shape twice for two different meanings is how both stop being read. */}
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#6b8f7e]/50 text-[11px] font-bold text-[#a8c5b5]">
+                    {i + 1}
+                  </span>
+                  <span className="text-sm leading-relaxed text-[#edeae3]/55">
+                    <b className="text-[#edeae3]/85">{title}</b> — {body}
+                  </span>
+                </li>
+              ))}
+            </ol>
+
             {err && <p className="mt-3 text-sm font-semibold text-[#ef9a9a]">{err}</p>}
             <button type="button" onClick={() => onDone()} disabled={busy} className={`${AUTH_BTN} mt-6`}>
-              Start designing →
+              Start →
             </button>
           </div>
         )}
