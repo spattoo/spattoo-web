@@ -269,6 +269,15 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
         body: JSON.stringify({ questionId }),
       }).catch(() => ({ ok: false })),
 
+    // "Ask the Spattoo team" — the baker pressing a button, never a miss firing by itself. The
+    // server records the request even when the email does not leave, so a failure here is not the
+    // baker's problem and is not surfaced to them.
+    escalateHelp: (questionId: string, note?: string) =>
+      authFetch("/api/help/escalate", {
+        method: "POST",
+        body: JSON.stringify(note ? { questionId, note } : { questionId }),
+      }),
+
     // ── Push: this device asking to be notified ────────────────────────────────────────────────
     // Safe to call on every load — the FCM SDK returns the same token and the API upserts on it.
     registerDeviceToken: (
