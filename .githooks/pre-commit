@@ -10,3 +10,17 @@
 . "$(git rev-parse --show-toplevel)/.githooks/_lib.sh"
 
 secret_scan_staged || exit 1
+
+# ── The website FAQ also feeds the help assistant ───────────────────────────────────────────────
+# lib/faq.ts is the single source; spattoo-docs/help/faq.md is generated from it and indexed so a
+# signed-in baker can get those answers too. Edit faq.ts without re-exporting and the assistant
+# keeps giving the previous wording, with nothing erroring — the same silent staleness the docs
+# repo's own push gate exists to stop, caught here at the source.
+#
+# Only when faq.ts is actually staged, and skipped when spattoo-docs is not checked out beside
+# this repo (a clone on a machine that only has the website).
+if git diff --cached --name-only | grep -q '^apps/marketing/lib/faq\.ts$'; then
+  if [ -d "$(git rev-parse --show-toplevel)/../spattoo-docs/help" ]; then
+    npm run --silent check:faq-export || exit 1
+  fi
+fi
