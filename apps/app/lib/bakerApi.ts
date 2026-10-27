@@ -248,6 +248,17 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
         body: JSON.stringify(ids ? { ids } : {}),
       }),
 
+    // ── The assistant: "how do I do this in Spattoo?" ──────────────────────────────────────────
+    // One embedding of the question server-side; the answer is the help article's own text. No
+    // credits are spent. It THROWS rather than swallowing, unlike the bell above: the assistant was
+    // opened and a question was typed, so an empty panel would read as "nothing is written about
+    // that" — the one answer that must only ever come from the server actually saying so.
+    searchHelp: (question: string, limit?: number) =>
+      authFetch("/api/help/search", {
+        method: "POST",
+        body: JSON.stringify(limit ? { question, limit } : { question }),
+      }),
+
     // ── Push: this device asking to be notified ────────────────────────────────────────────────
     // Safe to call on every load — the FCM SDK returns the same token and the API upserts on it.
     registerDeviceToken: (
