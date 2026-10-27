@@ -248,6 +248,36 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
         body: JSON.stringify(ids ? { ids } : {}),
       }),
 
+    // ── The assistant: "how do I do this in Spattoo?" ──────────────────────────────────────────
+    // One embedding of the question server-side; the answer is the help article's own text. No
+    // credits are spent. It THROWS rather than swallowing, unlike the bell above: the assistant was
+    // opened and a question was typed, so an empty panel would read as "nothing is written about
+    // that" — the one answer that must only ever come from the server actually saying so.
+    searchHelp: (question: string, limit?: number) =>
+      authFetch("/api/help/search", {
+        method: "POST",
+        body: JSON.stringify(limit ? { question, limit } : { question }),
+      }),
+
+    // "That did not answer my question." The only way we learn about the common failure, which is
+    // a card that scores well, comes from the right article, and still does not contain the answer.
+    // `.catch` swallows: the baker has said their piece, and an error over a feedback tap teaches
+    // them not to tap it again.
+    sendHelpFeedback: (questionId: string) =>
+      authFetch("/api/help/feedback", {
+        method: "POST",
+        body: JSON.stringify({ questionId }),
+      }).catch(() => ({ ok: false })),
+
+    // "Ask the Spattoo team" — the baker pressing a button, never a miss firing by itself. The
+    // server records the request even when the email does not leave, so a failure here is not the
+    // baker's problem and is not surfaced to them.
+    escalateHelp: (questionId: string, note?: string) =>
+      authFetch("/api/help/escalate", {
+        method: "POST",
+        body: JSON.stringify(note ? { questionId, note } : { questionId }),
+      }),
+
     // ── Push: this device asking to be notified ────────────────────────────────────────────────
     // Safe to call on every load — the FCM SDK returns the same token and the API upserts on it.
     registerDeviceToken: (

@@ -36,6 +36,8 @@
     "build:app": "npm run build --workspace app",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "check:csp": "node scripts/check-csp.mjs"
+    "check:csp": "node scripts/check-csp.mjs",
+    "export:faq": "node scripts/export-faq.mjs",
+    "check:faq-export": "node scripts/export-faq.mjs --check"
   }
 }

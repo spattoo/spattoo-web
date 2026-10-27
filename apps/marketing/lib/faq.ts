@@ -39,6 +39,19 @@ export const FAQ: FaqItem[] = [
     ],
   },
   {
+    /* ⚠️ SECOND, RIGHT AFTER "Why design in 3D?", because it is the same question asked by someone
+       who has already seen an AI image tool — and in 2026 that is most people. Both answer "why is
+       this built the way it is" before any answer about storefronts or templates can land.
+       Reasoning, and the clause-by-clause diff of Sandeep's dictation, in website-faq.md. */
+    q: "I can generate a cake image using AI. Why Spattoo?",
+    a: [
+      "Yes, you can. Sometimes AI includes decorative elements that are not practically possible — a decoration with nothing holding it up, or a shape no cake would hold. Spattoo is a studio built for bakers. It focuses on what is practically possible, so the cake your customer approves is one you can make.",
+      "And Spattoo is not just about generating a design. It goes much further than that. You turn the design into an order, with the size, the flavour and the date on it. You open the build guide for that cake: the recommended tin sizes, the steps, the colours to mix, and the cut-outs to print.",
+      "You can also let your customer design their own cake. We believe in that — designing your own cake, and then seeing it baked, is like telling your own story.",
+      "You show your work on your own storefront. Your customers order the design they can see, from one link.",
+    ],
+  },
+  {
     q: "How does a storefront help me?",
     a: [
       "Your storefront is your shareable store. Your customers order from one link — yourname.spattoo.com — instead of twenty messages. Put it in your Instagram bio or send it on WhatsApp. Add your logo and your colours, and they see your branding, not ours.",
