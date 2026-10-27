@@ -259,6 +259,16 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
         body: JSON.stringify(limit ? { question, limit } : { question }),
       }),
 
+    // "That did not answer my question." The only way we learn about the common failure, which is
+    // a card that scores well, comes from the right article, and still does not contain the answer.
+    // `.catch` swallows: the baker has said their piece, and an error over a feedback tap teaches
+    // them not to tap it again.
+    sendHelpFeedback: (questionId: string) =>
+      authFetch("/api/help/feedback", {
+        method: "POST",
+        body: JSON.stringify({ questionId }),
+      }).catch(() => ({ ok: false })),
+
     // ── Push: this device asking to be notified ────────────────────────────────────────────────
     // Safe to call on every load — the FCM SDK returns the same token and the API upserts on it.
     registerDeviceToken: (
