@@ -781,6 +781,15 @@ export function makeBakerApiClient(supabase: SupabaseClient) {
     setRailSkin: (key: string | null) =>
       authFetch("/api/baker/account/rail-skin", { method: "PUT", body: JSON.stringify({ key }) }),
 
+    /* ── The room the baker designs in ─────────────────────────────────────────────────────────
+       Ground colour, backdrop look and grid floor, chosen in Settings and applied to the editing
+       canvas and to the take panels' starting values. Open to every baker, so unlike the rail skin
+       above there is no chosen/served split to reconcile — the server stores an object and hands it
+       back, and core validates every field at both ends (`designer/studioLook.js`). */
+    fetchStudioLook: () => authGet("/api/baker/account/studio-look"),
+    setStudioLook: (look: Record<string, unknown> | null) =>
+      authFetch("/api/baker/account/studio-look", { method: "PUT", body: JSON.stringify({ look }) }),
+
     // Prove it is still you, so the server will accept a change on the account screen.
     //
     // The password goes to SUPABASE, exactly as it does at sign-in, and never to our API — which
