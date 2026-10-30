@@ -1,42 +1,39 @@
 "use client";
 
-/* ── The logo sting: the cake pipes the wordmark ─────────────────────────────────────────────────
+/* ── The logo sting, on its own, at any aspect ratio ─────────────────────────────────────────────
  *
- * A two-tier cake travels in from the left and the Spattoo script is revealed behind it as it
- * goes, the way icing comes off a piping nozzle. It reaches the end of the word, and fades,
- * leaving the logo.
+ * Two cake tiers become the two "o"s of Spattoo. Lifted out of `linkedin-company`, which drew the
+ * same beat as the left-hand third of a 1920×1080 cover and then spent eleven more seconds on a
+ * tagline, a URL and three value props. Sandeep wanted the logo part alone, for YouTube and
+ * Instagram as well as LinkedIn.
  *
- * ⚠️ THIS REPLACED A MORPH, AND THE MORPH COULD NOT SURVIVE THE BRIEF. `linkedin-company` turned
- * two round cake tiers into the two round "o"s of a GEOMETRIC "Spattoo" — a good trick that only
- * works in a face whose "o" is a circle. Sandeep: *"we should use the actual logo"*, and the actual
- * logo is a script wordmark whose "oo" are cursive loops. There is nothing round to land on. So the
- * cake stops BECOMING the letters and starts WRITING them, which is also the better idea: left to
- * right is now the whole mechanic rather than an entrance, and a cake piping its own name is what
- * this product does.
+ * ⚠️ THE LAYOUT IS DERIVED, NOT TYPED. The cover version hardcoded `baseX=132, baseY=512` against a
+ * fixed 1920×1080 — which is why it cannot be re-cut for a portrait Reel without moving every
+ * number by hand. Here the lockup is drawn at the origin in its own units and then centred and
+ * scaled into whatever canvas it is given, so a new size is a row in SIZES and nothing else.
  *
- * ⚠️ AND IT IS THE REAL LOGO, NOT A TYPEFACE STANDING IN FOR ONE. Three attempts got this wrong in
- * a row. `linkedin-company` hardcodes `800 118px Arial` in all eleven of its draw calls, so the
- * published cover was never in a Spattoo face at all. Swapping that for Geist — what the marketing
- * site sets its TEXT in — measured as a change and looked like none, because Geist at 800 and Arial
- * at 800 are near-identical grotesques. Sandeep, correctly: *"you did not change the font"*. The
- * site has no distinctive display face to find; the only thing on that screen that IS the Spattoo
- * wordmark is the drawn logo.
+ * ⚠️ AND THE SCALE IS SET BY THE TRANSIENT, NOT THE FINAL WORDMARK. The top tier overshoots to the
+ * right before settling, and the candle rises well above the cake — so fitting the finished
+ * "Spattoo" to the frame puts the tallest moment of the animation off the top of a square. The
+ * height term measures from the baseline to the top of the flame.
  *
- * ⚠️ `spattoo-logo-2.jpg`, NOT one of the three PNGs. The PNGs carry alpha and are 400×300, which
- * is soft by the time it fills 72% of a 1920 frame. The JPEG is 1178×1284 and carries the tagline,
- * and its background is a FLAT cream — so keying it is a threshold, not a matting problem. Keyed
- * and tinted once at load into an offscreen canvas, then trimmed to its ink, so the layout centres
- * the wordmark rather than the file's margins.
+ * ⚠️ GEIST, LOADED AS A FontFace BEFORE THE FIRST FRAME. The cover hardcodes `800 118px Arial`
+ * throughout, so the published animation was never in a Spattoo face at all. Geist is what the
+ * marketing site sets its text in (`--font-geist-sans`, app/layout.tsx) and the base64 is already
+ * in the repo next door. A canvas falls back silently, so nothing draws until the face resolves —
+ * a sting recorded in Arial looks fine and is wrong.
  *
- * ⚠️ THE LAYOUT IS DERIVED, NOT TYPED. The cover hardcoded `baseX=132, baseY=512` against a fixed
- * 1920×1080, which is why it could not be re-cut for a portrait Reel without moving every number by
- * hand. Everything here is a fraction of the canvas it is handed, so a new size is a row in SIZES.
+ * The logo itself is a SCRIPT wordmark (public/Spattoo-lo-no-tag-line.png) and deliberately not
+ * used here: its "oo" are cursive loops, and a round cake tier cannot morph into one. The whole
+ * mechanic needs a geometric "o".
  */
 
 import { useEffect, useRef, useState } from "react";
 import { guardInternalPage } from "@/lib/domain";
+import geistB64 from "../linkedin-personal/geistFont";
 
-const LOOP = 7.0;          // seconds — the beat ends ~1s after the glyphs land
+const FONT = "GeistSting";
+const LOOP = 6.5;          // seconds — the beat ends 1s after the glyphs land
 const FPS  = 30;
 
 const SIZES = [
@@ -156,66 +153,11 @@ function drawCandle(
   ctx.stroke();
 }
 
-// ── The logo, keyed off its cream background and tinted ───────────────────────────────────────
-/*
- * The source is a JPEG, so there is no alpha to use — but its background is a single flat cream
- * and its ink a single flat green, which makes this a threshold rather than a matte. Luminance
- * decides; everything darker than the midpoint becomes opaque cream, everything lighter vanishes.
- *
- * ⚠️ AND IT IS TRIMMED TO THE INK. The file carries wide empty margins (the wordmark occupies
- * roughly the middle half of a 1178×1284 canvas), so centring the FILE puts the wordmark off
- * centre and sizing by the file makes it small. The bounding box is measured once here.
- */
-type Logo = { canvas: HTMLCanvasElement; w: number; h: number };
-
-async function buildLogo(src: string, ink: string): Promise<Logo | null> {
-  const img = new Image();
-  img.src = src;
-  await new Promise<void>(r => { img.onload = () => r(); img.onerror = () => r(); });
-  if (!img.naturalWidth) return null;
-
-  const w = img.naturalWidth, h = img.naturalHeight;
-  const work = document.createElement("canvas");
-  work.width = w; work.height = h;
-  const wx = work.getContext("2d")!;
-  wx.drawImage(img, 0, 0);
-
-  const d = wx.getImageData(0, 0, w, h);
-  const px = d.data;
-  let minX = w, minY = h, maxX = -1, maxY = -1;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4;
-      // Rec.601 luma. The ink sits near 75, the ground near 238, so the midpoint is nowhere near
-      // either and a few points either way changes nothing.
-      const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-      const a = lum > 160 ? 0 : 255;
-      px[i + 3] = a;
-      if (a) {
-        if (x < minX) minX = x; if (x > maxX) maxX = x;
-        if (y < minY) minY = y; if (y > maxY) maxY = y;
-      }
-    }
-  }
-  if (maxX < 0) return null;
-  wx.putImageData(d, 0, 0);
-
-  // Recolour: keep the shape, replace the ink.
-  wx.globalCompositeOperation = "source-in";
-  wx.fillStyle = ink;
-  wx.fillRect(0, 0, w, h);
-  wx.globalCompositeOperation = "source-over";
-
-  const tw = maxX - minX + 1, th = maxY - minY + 1;
-  const out = document.createElement("canvas");
-  out.width = tw; out.height = th;
-  out.getContext("2d")!.drawImage(work, minX, minY, tw, th, 0, 0, tw, th);
-  return { canvas: out, w: tw, h: th };
-}
-
 // ── One frame, into a canvas of any size ──────────────────────────────────────────────────────
 
-function drawFrame(ctx: CanvasRenderingContext2D, s: number, W: number, H: number, logo: Logo | null) {
+const REF = 118;   // reference font size; everything else is measured off it and then scaled
+
+function drawFrame(ctx: CanvasRenderingContext2D, s: number, W: number, H: number) {
   // Background
   ctx.fillStyle = "#0d0d0d";
   ctx.fillRect(0, 0, W, H);
@@ -239,61 +181,150 @@ function drawFrame(ctx: CanvasRenderingContext2D, s: number, W: number, H: numbe
   g2.addColorStop(0, "rgba(107,143,126,0.18)"); g2.addColorStop(1, "transparent");
   ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
 
-  if (!logo) return;
+  // ── Measure the lockup at the reference size ────────────────────────────────────────────────
+  ctx.font = `800 ${REF}px ${FONT}`;
+  const om   = ctx.measureText("o");
+  const oW   = om.width;
+  const oAsc = om.actualBoundingBoxAscent  || Math.round(REF * 0.72);
+  const oDsc = om.actualBoundingBoxDescent || Math.round(REF * 0.07);
+  const oH   = oAsc + oDsc;
+  const spattW = ctx.measureText("Spatt").width;
 
-  // ── Where the wordmark sits ─────────────────────────────────────────────────────────────────
-  /* Fit by width on a landscape frame and by height on a tall one, so a 9:16 Reel does not get a
-     wordmark three pixels high and a 16:9 does not get one running off both edges. */
-  const lw = Math.min(W * 0.76, (H * 0.52) * (logo.w / logo.h));
-  const lh = lw * logo.h / logo.w;
-  const lx = (W - lw) / 2;
-  const ly = (H - lh) / 2;
+  const TIER_GAP = 8;
+  const T_W = oW * 0.70;
+  const T_H = oH * 0.58;
 
-  // ── Timings ─────────────────────────────────────────────────────────────────────────────────
-  const TRAVEL_S = 0.25, TRAVEL_D = 4.1;   // the cake crosses, writing as it goes
-  const LIFT_S   = 4.5,  LIFT_D   = 0.7;   // then it fades, leaving the logo
+  const finalW = spattW + 2 * oW;
+  /* Baseline → top of the flame. The candle is 0.55 of a tier tall and its flame another 0.55 of
+     that, so the tier stack reaches 1.85 tier-heights above the wordmark's cap line. */
+  const aboveBaseline = oAsc + TIER_GAP + T_H * 1.85;
 
-  const travel = eo(cl((s - TRAVEL_S) / TRAVEL_D));
-  const lift   = eo(cl((s - LIFT_S) / LIFT_D));
+  const scale = Math.min(W * 0.78 / finalW, H * 0.40 / aboveBaseline);
 
-  /* The cake is sized off the wordmark's own height so it reads as the thing that drew it, and it
-     rides the vertical middle of the word rather than the middle of the frame — the tagline hangs
-     below the baseline on the right and would otherwise pull the cake off the line it is writing. */
-  const tierW = lh * 0.30;
-  const tierH = tierW * 0.62;
-  const cakeCY = ly + lh * 0.42;
+  ctx.save();
+  // Centre the FINISHED wordmark in the frame; the transient reaches up into the space above it.
+  ctx.translate(W / 2 - (finalW / 2) * scale, H / 2 + ((oAsc - oDsc) / 2) * scale);
+  ctx.scale(scale, scale);
 
-  // Starts fully off the left edge; ends just past the end of the word.
-  const startX = -tierW * 1.6;
-  const endX   = lx + lw + tierW * 0.5;
-  const cakeCX = lerp(startX, endX, travel);
+  // ── The lockup, drawn at the origin ─────────────────────────────────────────────────────────
+  const baseX = 0, baseY = 0;
+  const o1X  = baseX + spattW;
+  const o2X  = o1X + oW;
+  const o1CX = o1X + oW / 2;
+  const o2CX = o2X + oW / 2;
+  const oCY  = baseY - oAsc + oH / 2;
 
-  /* ⚠️ THE ICING TRAILS THE NOZZLE. The reveal edge is the cake's LEFT side, so the script appears
-     out from under it as it moves right. Put the edge at the centre and the cake sits on top of
-     wet icing it has not laid down yet. */
-  const revealX = cakeCX - tierW * 0.5;
+  const topInitCX = o1CX;
+  const topInitCY = oCY - oH / 2 - TIER_GAP - T_H / 2;
 
-  withAlpha(ctx, 1, () => {
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, Math.max(0, revealX), H);
-    ctx.clip();
-    ctx.drawImage(logo.canvas, lx, ly, lw, lh);
+  // Phase timings — unchanged from the cover, so the beat is the same one people have seen
+  /* ⚠️ THE FADE IS SHORT, OR THE SLIDE IS INVISIBLE. At the cover's 0.3s delay over a 0.5s fade the
+     cake was still half transparent at the midpoint of its travel, so it only became visible around
+     the centre of the frame — which is the "appears a little to the right" this change exists to
+     fix, surviving the fix. It is up by 0.3s, with the remaining 0.7s of travel in full view. */
+  const RECT_IN = 0.0, RECT_D = 0.3;
+  const SPATT_S = 1.0, SPATT_D = 0.6;
+  const TILT_S  = 1.9, TILT_D  = 0.45;
+  const TOP_S   = 2.5, TOP_D   = 0.7;
+  const BOT_S   = 3.4, BOT_D   = 0.55;
+  const SETTLE_S = 4.4, SETTLE_D = 0.5;
+  const CROSS_S  = 5.0, CROSS_D  = 0.5;
+
+  /* ⚠️ THE CAKE SLIDES IN; IT DOES NOT APPEAR. The cover faded the two tiers up on the spot, a
+     little right of centre, which reads as a thing switching on rather than a thing arriving —
+     Sandeep: *"instead of directly coming to right, it should slide from left to right."* It
+     enters past the left edge and settles on the "oo" position by 1.0s, which is exactly when
+     "Spatt" starts its own slide, so every timing downstream is untouched.
+
+     The distance is derived from the canvas and the scale rather than typed, or the cake starts
+     off-screen on a wide frame and a long way off on a square one. */
+  const CAKE_S = 0.0, CAKE_D = 1.0;
+  const localLeft = -(W / (2 * scale) - finalW / 2);
+  const cakeEnter = eo(cl((s - CAKE_S) / CAKE_D));
+  const cakeDX    = lerp(localLeft - oW * 1.5 - o1CX, 0, cakeEnter);
+
+  const rectsAlpha   = fadeIn(s, RECT_IN, RECT_D);
+  const spattProg    = eo(cl((s - SPATT_S)  / SPATT_D));
+  const tiltIn       = eo(cl((s - TILT_S)   / TILT_D));
+  const tiltOut      = eo(cl((s - BOT_S)    / BOT_D));
+  const tiltAngle    = (tiltIn - tiltOut) * (9 * Math.PI / 180);
+  const topSlideProg = eo(cl((s - TOP_S)    / TOP_D));
+  const botMorphProg = eo(cl((s - BOT_S)    / BOT_D));
+  const settleProg   = eo(cl((s - SETTLE_S) / SETTLE_D));
+  const crossProg    = eo(cl((s - CROSS_S)  / CROSS_D));
+
+  const OVERSHOOT = oW * 0.85;
+  const curTopW  = lerp(T_W, oW, topSlideProg);
+  const curTopH  = lerp(T_H, oH, topSlideProg);
+  const curTopCY = lerp(topInitCY, oCY, topSlideProg);
+  const curTopCX = topSlideProg < 1
+    ? lerp(topInitCX, o2CX + OVERSHOOT, topSlideProg)
+    : lerp(o2CX + OVERSHOOT, o2CX, settleProg);
+
+  const botRad    = botMorphProg * Math.min(oW, oH) / 2;
+  const botStroke = lerp(2, 16, botMorphProg);
+  const topRad    = topSlideProg * Math.min(curTopW, curTopH) / 2;
+  const topStroke = lerp(2, 16, topSlideProg);
+  const shapeAlpha = rectsAlpha * (1 - crossProg);
+
+  // Bottom tier — cake out, oval in
+  withAlpha(ctx, shapeAlpha * (1 - botMorphProg), () => {
+    ctx.save(); ctx.translate(o1CX + cakeDX, oCY); ctx.rotate(tiltAngle);
+    drawCakeTierShape(ctx, 0, 0, oW, oH, 3, 2);
+    ctx.restore();
+  });
+  withAlpha(ctx, shapeAlpha * botMorphProg, () => {
+    ctx.save(); ctx.translate(o1CX + cakeDX, oCY); ctx.rotate(tiltAngle);
+    pathRRect(ctx, 0, 0, oW, oH, botRad);
+    ctx.strokeStyle = "#edeae3"; ctx.lineWidth = botStroke; ctx.stroke();
     ctx.restore();
   });
 
-  // ── The cake that is writing it ─────────────────────────────────────────────────────────────
-  const cakeAlpha = fadeIn(s, 0, 0.35) * (1 - lift);
-  withAlpha(ctx, cakeAlpha, () => {
-    const topW = tierW * 0.62, topH = tierH * 0.78;
-    const gap  = Math.max(1, tierH * 0.06);
-    const topCY = cakeCY - tierH / 2 - gap - topH / 2;
-    const sw = Math.max(1.5, lh * 0.012);
-
-    drawCakeTierShape(ctx, cakeCX, cakeCY, tierW, tierH, 3, sw);
-    drawCakeTierShape(ctx, cakeCX, topCY,  topW,  topH,  2, sw);
-    drawCandle(ctx, cakeCX, topCY - topH / 2, topH, sw, s);
+  // Top tier — cake out, oval in, slides right and settles
+  withAlpha(ctx, shapeAlpha * (1 - topSlideProg), () => {
+    ctx.save(); ctx.translate(curTopCX + cakeDX, curTopCY);
+    drawCakeTierShape(ctx, 0, 0, curTopW, curTopH, 2, 2);
+    ctx.restore();
+    drawCandle(ctx, curTopCX + cakeDX, curTopCY - curTopH / 2, curTopH, 2, s);
   });
+  withAlpha(ctx, shapeAlpha * topSlideProg, () => {
+    ctx.save(); ctx.translate(curTopCX + cakeDX, curTopCY);
+    pathRRect(ctx, 0, 0, curTopW, curTopH, topRad);
+    ctx.strokeStyle = "#edeae3"; ctx.lineWidth = topStroke; ctx.stroke();
+    ctx.restore();
+  });
+
+  // Dashed separator between the two tiers, while they are still cakes
+  withAlpha(ctx, shapeAlpha * (1 - topSlideProg), () => {
+    const sepY = oCY - oH / 2 - TIER_GAP / 2;
+    ctx.strokeStyle = "rgba(237,234,227,0.25)"; ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(o1CX + cakeDX - T_W * 0.42, sepY);
+    ctx.lineTo(o1CX + cakeDX + T_W * 0.42, sepY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // The real "oo" crossfades over the drawn ovals
+  withAlpha(ctx, crossProg, () => {
+    ctx.fillStyle = "#edeae3";
+    ctx.font = `800 ${REF}px ${FONT}`;
+    ctx.fillText("o", o1X, baseY);
+    ctx.fillText("o", o2X, baseY);
+  });
+
+  // "Spatt" slides in from the left
+  withAlpha(ctx, spattProg, () => {
+    ctx.save();
+    ctx.translate((1 - spattProg) * -260, 0);
+    ctx.fillStyle = "#edeae3";
+    ctx.font = `800 ${REF}px ${FONT}`;
+    ctx.fillText("Spatt", baseX, baseY);
+    ctx.restore();
+  });
+
+  ctx.restore();
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────────────────────
@@ -303,7 +334,6 @@ export default function LogoStingPage() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef<number>(0);
-  const logoRef   = useRef<Logo | null>(null);
   const [size, setSize]   = useState<SizeId>("16x9");
   const [ready, setReady] = useState(false);
   const [status, setStatus]     = useState<"preview" | "recording" | "done">("preview");
@@ -312,10 +342,14 @@ export default function LogoStingPage() {
 
   const dim = SIZES.find(s => s.id === size)!;
 
-  /* ⚠️ NOTHING DRAWS UNTIL THE LOGO IS KEYED. A canvas draws an unloaded image as nothing and does
-     not complain, so a sting recorded early is a cake crossing an empty frame. */
+  /* ⚠️ NOTHING DRAWS UNTIL THE FACE RESOLVES. A canvas falls back to the system sans without
+     erroring, so a sting recorded before the FontFace lands is in the wrong typeface and looks
+     entirely fine. Registered at 800 — Geist is variable, which is why one src covers it. */
   useEffect(() => {
-    buildLogo("/spattoo-logo-2.jpg", "#edeae3").then(l => { logoRef.current = l; setReady(!!l); });
+    const src = `url(data:font/woff2;base64,${geistB64})`;
+    const faces = ["400", "600", "800"].map(w => new FontFace(FONT, src, { weight: w }));
+    Promise.all(faces.map(f => f.load().then(l => document.fonts.add(l)).catch(() => {})))
+      .then(() => setReady(true));
   }, []);
 
   useEffect(() => {
@@ -325,7 +359,7 @@ export default function LogoStingPage() {
     const ctx = canvas.getContext("2d")!;
     const start = performance.now();
     const loop = (now: number) => {
-      drawFrame(ctx, ((now - start) / 1000) % LOOP, dim.w, dim.h, logoRef.current);
+      drawFrame(ctx, ((now - start) / 1000) % LOOP, dim.w, dim.h);
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
@@ -350,7 +384,7 @@ export default function LogoStingPage() {
     encoder.configure({ codec: "avc1.640028", width: dim.w, height: dim.h, bitrate: 4_000_000, framerate: FPS });
 
     for (let i = 0; i < total; i++) {
-      drawFrame(ctx, i / FPS, dim.w, dim.h, logoRef.current);
+      drawFrame(ctx, i / FPS, dim.w, dim.h);
       const frame = new VideoFrame(canvas, {
         timestamp: Math.round(i / FPS * 1_000_000),
         duration:  Math.round(1_000_000 / FPS),
@@ -366,6 +400,7 @@ export default function LogoStingPage() {
     setStatus("done");
   }
 
+  // Fit the preview into the page without changing the canvas's real pixel size
   const previewH = 460;
   const previewW = Math.round(previewH * dim.w / dim.h);
 
@@ -378,14 +413,14 @@ export default function LogoStingPage() {
       </p>
 
       <div style={{ display: "flex", gap: 8 }}>
-        {SIZES.map(sz => (
-          <button key={sz.id} onClick={() => { setSize(sz.id); setStatus("preview"); setDlUrl(""); }}
+        {SIZES.map(s => (
+          <button key={s.id} onClick={() => { setSize(s.id); setStatus("preview"); setDlUrl(""); }}
             style={{ padding: "8px 16px", borderRadius: 18, cursor: "pointer", fontSize: 13,
-                     border: `1px solid ${size === sz.id ? "#6b8f7e" : "rgba(107,143,126,0.25)"}`,
-                     background: size === sz.id ? "#3d5247" : "transparent",
-                     color: size === sz.id ? "#edeae3" : "#6b8f7e" }}>
-            {sz.label}<br />
-            <span style={{ fontSize: 11, opacity: 0.7 }}>{sz.w}×{sz.h}</span>
+                     border: `1px solid ${size === s.id ? "#6b8f7e" : "rgba(107,143,126,0.25)"}`,
+                     background: size === s.id ? "#3d5247" : "transparent",
+                     color: size === s.id ? "#edeae3" : "#6b8f7e" }}>
+            {s.label}<br />
+            <span style={{ fontSize: 11, opacity: 0.7 }}>{s.w}×{s.h}</span>
           </button>
         ))}
       </div>
@@ -393,7 +428,7 @@ export default function LogoStingPage() {
       <canvas ref={canvasRef} width={dim.w} height={dim.h}
         style={{ width: previewW, height: previewH, border: "1px solid rgba(107,143,126,0.25)", borderRadius: 6 }} />
 
-      {!ready && <p style={{ color: "#6b8f7e", fontSize: 13 }}>Keying the logo…</p>}
+      {!ready && <p style={{ color: "#6b8f7e", fontSize: 13 }}>Loading Geist…</p>}
 
       {ready && status === "preview" && (
         <button onClick={record} data-record
