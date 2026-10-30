@@ -1,25 +1,57 @@
 import type { Metadata } from "next";
 import { BASE_DOMAIN } from "@/lib/domain";
-import { Geist, Geist_Mono, Fraunces } from "next/font/google";
+import localFont from "next/font/local";
 import Analytics from "@/components/Analytics";
 import "./globals.css";
 
-const geistSans = Geist({
+/* ── Self-hosted, deliberately — `next/font/google` fetches AT BUILD TIME ───────────────────────
+ *
+ * Next 16 builds with Turbopack, and when that build-time fetch fails inside Vercel's container
+ * Turbopack reports it as a module-resolution error rather than a network one, so the log blames
+ * the code. It reads:
+ *
+ *     Module not found: Can't resolve '@vercel/turbopack-next/internal/font/google/font'
+ *     next/font/google queries have exactly one entry
+ *
+ * That failed a deploy on 2026-09-22 and again on 2026-10-30, both times with the same commit
+ * building clean locally — the second one blocking an unrelated release that was waiting behind it.
+ * A build that reaches the network is a build that fails for reasons nobody can act on, so the
+ * network is now out of it: the files sit next to this one and nothing is fetched.
+ *
+ * ⚠️ THE CSS VARIABLE NAMES ARE LOAD-BEARING and must not change — `globals.css` maps
+ * `--font-geist-sans`/`--font-geist-mono` onto `--font-sans`/`--font-mono`, and SiteFooter reads
+ * `--font-fraunces` directly. Renaming one silently drops the site to a system font.
+ *
+ * Faces are the `latin` subset only, matching the `subsets: ["latin"]` these replaced, and are the
+ * variable builds, so the weight RANGES below are what the axis supports rather than a guess.
+ * Both families are SIL Open Font License 1.1 (Geist © Vercel, Fraunces © Undercase Type), which
+ * permits redistribution; see fonts/README.md.
+ *
+ * core's own `check:fonts` gate already forbids a third-party font CDN. This brings marketing in
+ * line with the rule the rest of the codebase has been holding.
+ */
+const geistSans = localFont({
+  src: "./fonts/geist-latin-var.woff2",
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  weight: "100 900",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: "./fonts/geist-mono-latin-var.woff2",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: "100 900",
+  display: "swap",
 });
 
 // Serif display face for the brand tagline — adds craft/warmth against the geometric Geist sans.
-const fraunces = Fraunces({
+const fraunces = localFont({
+  src: [
+    { path: "./fonts/fraunces-latin-var.woff2", style: "normal", weight: "400 500" },
+    { path: "./fonts/fraunces-latin-italic-var.woff2", style: "italic", weight: "400 500" },
+  ],
   variable: "--font-fraunces",
-  subsets: ["latin"],
-  style: ["normal", "italic"],
-  weight: ["400", "500"],
+  display: "swap",
 });
 
 const SITE_URL = `https://www.${BASE_DOMAIN}`;
