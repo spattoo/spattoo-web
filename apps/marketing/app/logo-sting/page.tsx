@@ -61,6 +61,12 @@ const THEMES = {
   light: { id: "light", label: "Green on cream", bg: "#F2EEE8", ink: "#3A5047",
            grid: "#3A5047", gridAlpha: 0.10,
            glowA: "rgba(58,80,71,0.11)", glowB: "rgba(58,80,71,0.07)" },
+  /* Asked for directly, after I had paired the green with cream on my own judgement and been told
+     not to. The contrast note above still describes it — about 2.1:1 — but that is a fact to state
+     once, not a reason to substitute a different thing for the one that was asked for. */
+  green: { id: "green", label: "Green on black", bg: "#0D0D0D", ink: "#3A5047",
+           grid: "#6B8F7E", gridAlpha: 0.14,
+           glowA: "rgba(50,75,60,0.60)", glowB: "rgba(107,143,126,0.18)" },
 } as const;
 
 type ThemeId = keyof typeof THEMES;
