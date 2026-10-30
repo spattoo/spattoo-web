@@ -43,6 +43,29 @@ const SIZES = [
 
 type SizeId = (typeof SIZES)[number]["id"];
 
+/* ── Two colourways, and the grounds are not interchangeable ─────────────────────────────────────
+ *
+ * Sandeep asked for the wordmark in the logo's own green as well as in cream. Green on the dark
+ * ground does not work and is not a taste call: #3A5047 on #0D0D0D measures about 2.1:1, which is
+ * below every legibility floor there is — at a glance on a phone the word is not there. The green
+ * belongs on the cream it was drawn against, which is also the pairing the logo file itself ships.
+ *
+ * Both colours are taken off the artwork rather than picked: the ink reads rgb(58,80,71) and the
+ * ground rgb(242,238,232) in `spattoo-logo-2.jpg`. The cake, the loops and the grid follow the ink,
+ * so one entry here recolours the whole frame and nothing can be left behind on a theme switch.
+ */
+const THEMES = {
+  dark:  { id: "dark",  label: "Cream on dark", bg: "#0D0D0D", ink: "#EDEAE3",
+           grid: "#6B8F7E", gridAlpha: 0.14,
+           glowA: "rgba(50,75,60,0.60)", glowB: "rgba(107,143,126,0.18)" },
+  light: { id: "light", label: "Green on cream", bg: "#F2EEE8", ink: "#3A5047",
+           grid: "#3A5047", gridAlpha: 0.10,
+           glowA: "rgba(58,80,71,0.11)", glowB: "rgba(58,80,71,0.07)" },
+} as const;
+
+type ThemeId = keyof typeof THEMES;
+type Theme = (typeof THEMES)[ThemeId];
+
 // ── Helpers (from linkedin-company — same easing, so the beat reads identically) ──────────────
 
 const cl   = (t: number) => Math.min(1, Math.max(0, t));
@@ -71,7 +94,7 @@ function pathRRect(ctx: CanvasRenderingContext2D, cx: number, cy: number, w: num
 function drawCakeTierShape(
   ctx: CanvasRenderingContext2D,
   cx: number, cy: number, w: number, h: number,
-  numScallops: number, sw: number,
+  numScallops: number, sw: number, ink: string,
 ) {
   const x = cx - w / 2, y = cy - h / 2;
   const R          = 10;
@@ -79,7 +102,7 @@ function drawCakeTierShape(
   const bodyH      = h - scallDepth;
   const scallW     = w / numScallops;
 
-  ctx.strokeStyle = "#edeae3";
+  ctx.strokeStyle = ink;
   ctx.lineWidth   = sw;
 
   ctx.beginPath();
@@ -117,7 +140,7 @@ function drawCakeTierShape(
 
 function drawCandle(
   ctx: CanvasRenderingContext2D,
-  cx: number, topY: number, tierH: number, sw: number, s: number,
+  cx: number, topY: number, tierH: number, sw: number, s: number, ink: string,
 ) {
   const candleW = tierH * 0.16;
   const candleH = tierH * 0.55;
@@ -126,7 +149,7 @@ function drawCandle(
   const cLeft   = cx - candleW / 2;
   const cTop    = topY - candleH;
 
-  ctx.strokeStyle = "#edeae3";
+  ctx.strokeStyle = ink;
   ctx.lineWidth   = sw;
 
   ctx.beginPath();
@@ -177,15 +200,14 @@ type Logo = { canvas: HTMLCanvasElement; w: number; h: number };
    file being re-exported at another size, and they are the only numbers tying the animation to
    this particular drawing. If the logo is ever redrawn, re-measure these four and nothing else. */
 const OO = {
-  o1cx: 0.665,   // centre of the first  "o" loop, across
-  o2cx: 0.765,   // centre of the second "o" loop, across
-  cy:   0.455,   // both loops' vertical centre, down
-  w:    0.100,   // one loop's width
-  h:    0.330,   // one loop's height — taller than wide; these are slanted, not circles
-  spattEnd: 0.615, // where "Spatt" stops and the first loop starts
+  o1cx: 0.790,   // centre of the first  "o" loop, across
+  o2cx: 0.905,   // centre of the second "o" loop, across
+  cy:   0.450,   // both loops' vertical centre, down
+  w:    0.115,   // one loop's width
+  h:    0.340,   // one loop's height — taller than wide; these are slanted, not circles
+  spattEnd: 0.720, // where "Spatt" stops and the first loop starts
   slant: 0.17,   // radians the loops lean, to match the script's italic
 };
-
 async function buildLogo(src: string, ink: string): Promise<Logo | null> {
   const img = new Image();
   img.src = src;
@@ -200,20 +222,49 @@ async function buildLogo(src: string, ink: string): Promise<Logo | null> {
 
   const d = wx.getImageData(0, 0, w, h);
   const px = d.data;
-  let minX = w, minY = h, maxX = -1, maxY = -1;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4;
-      const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-      const a = lum > 160 ? 0 : 255;
-      px[i + 3] = a;
-      if (a) {
-        if (x < minX) minX = x; if (x > maxX) maxX = x;
-        if (y < minY) minY = y; if (y > maxY) maxY = y;
+
+  /* Key: the ground is a single flat cream and the ink a single flat green, so this is a
+     threshold rather than a matting problem — the ink sits near 75 and the ground near 238. */
+  const on = new Uint8Array(w * h);
+  for (let i = 0, j = 0; i < px.length; i += 4, j++) {
+    const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+    on[j] = lum > 160 ? 0 : 1;
+  }
+
+  /* ⚠️ THE TAGLINE COMES OFF BY KEEPING THE LARGEST COMPONENT, which needs no threshold to tune
+     and no rectangle to place. Sandeep: *"i dont need the caption (from idea to cake visually)."*
+     It cannot be cropped — it sits under the wordmark's own x-range, so any rectangle that catches
+     it clips the loops too. Measured instead: the wordmark is ONE 8-connected blob of 80,702px and
+     every one of the seventeen tagline letters is 394px or fewer. Two orders of magnitude apart,
+     so "the biggest one" is not a tuned cut-off, it is the only thing there. */
+  const lab = new Int32Array(w * h).fill(-1);
+  const boxes: number[][] = [];
+  const stack: number[] = [];
+  let best = -1, bestN = 0;
+  for (let seed = 0; seed < w * h; seed++) {
+    if (!on[seed] || lab[seed] >= 0) continue;
+    const id = boxes.length;
+    let n = 0, mnx = w, mny = h, mxx = -1, mxy = -1;
+    stack.push(seed); lab[seed] = id;
+    while (stack.length) {
+      const q = stack.pop()!, qx = q % w, qy = (q / w) | 0;
+      n++;
+      if (qx < mnx) mnx = qx; if (qx > mxx) mxx = qx;
+      if (qy < mny) mny = qy; if (qy > mxy) mxy = qy;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = qx + dx, ny = qy + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const k = ny * w + nx;
+        if (on[k] && lab[k] < 0) { lab[k] = id; stack.push(k); }
       }
     }
+    boxes.push([mnx, mny, mxx, mxy]);
+    if (n > bestN) { bestN = n; best = id; }
   }
-  if (maxX < 0) return null;
+  if (best < 0) return null;
+
+  for (let j = 0; j < w * h; j++) px[j * 4 + 3] = (on[j] && lab[j] === best) ? 255 : 0;
+  const [minX, minY, maxX, maxY] = boxes[best];
   wx.putImageData(d, 0, 0);
 
   wx.globalCompositeOperation = "source-in";
@@ -232,25 +283,25 @@ async function buildLogo(src: string, ink: string): Promise<Logo | null> {
 
 // ── One frame, into a canvas of any size ──────────────────────────────────────────────────────
 
-function drawFrame(ctx: CanvasRenderingContext2D, s: number, W: number, H: number, logo: Logo | null) {
-  ctx.fillStyle = "#0d0d0d";
+function drawFrame(ctx: CanvasRenderingContext2D, s: number, W: number, H: number, logo: Logo | null, th: Theme) {
+  ctx.fillStyle = th.bg;
   ctx.fillRect(0, 0, W, H);
 
   /* The grid cell is tied to the SHORT edge, so a square, a portrait and a landscape frame all
      show squares of the same apparent size. 1080 / 13.5 = 80, the cover's original spacing. */
   const cell = Math.round(Math.min(W, H) / 13.5);
   ctx.save();
-  ctx.globalAlpha = 0.14; ctx.strokeStyle = "#6b8f7e"; ctx.lineWidth = 0.8;
+  ctx.globalAlpha = th.gridAlpha; ctx.strokeStyle = th.grid; ctx.lineWidth = 0.8;
   for (let x = 0; x <= W; x += cell) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
   for (let y = 0; y <= H; y += cell) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
   ctx.restore();
 
   const gr = Math.max(W, H) * 0.3;
   const g1 = ctx.createRadialGradient(W * 0.08, H / 2, 0, W * 0.08, H / 2, gr);
-  g1.addColorStop(0, "rgba(50,75,60,0.6)"); g1.addColorStop(1, "transparent");
+  g1.addColorStop(0, th.glowA); g1.addColorStop(1, "transparent");
   ctx.fillStyle = g1; ctx.fillRect(0, 0, W, H);
   const g2 = ctx.createRadialGradient(W * 0.92, H / 2, 0, W * 0.92, H / 2, gr * 0.8);
-  g2.addColorStop(0, "rgba(107,143,126,0.18)"); g2.addColorStop(1, "transparent");
+  g2.addColorStop(0, th.glowB); g2.addColorStop(1, "transparent");
   ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
 
   if (!logo) return;
@@ -279,7 +330,10 @@ function drawFrame(ctx: CanvasRenderingContext2D, s: number, W: number, H: numbe
      near the centre of the frame — "appears a little to the right" surviving the fix for it. */
   const RECT_IN = 0.0, RECT_D = 0.3;
   const CAKE_S  = 0.0, CAKE_D = 1.0;
-  const SPATT_S = 1.0, SPATT_D = 0.6;
+  /* 0.85, not the cover's 0.6 — *"spatt coming very fast.. little slow, just a slight decrease in
+     speed."* It still lands at 1.85s, just before the tilt starts at 1.9, so nothing downstream
+     moves and the beat is the same length. */
+  const SPATT_S = 1.0, SPATT_D = 0.85;
   const TILT_S  = 1.9, TILT_D  = 0.45;
   const TOP_S   = 2.5, TOP_D   = 0.7;
   const BOT_S   = 3.4, BOT_D   = 0.55;
@@ -332,34 +386,34 @@ function drawFrame(ctx: CanvasRenderingContext2D, s: number, W: number, H: numbe
   // ── Bottom tier — cake out, loop in ─────────────────────────────────────────────────────────
   withAlpha(ctx, shapeAlpha * (1 - botMorphProg), () => {
     ctx.save(); ctx.translate(o1CX + cakeDX, oCY); ctx.rotate(tiltAngle);
-    drawCakeTierShape(ctx, 0, 0, ooW, ooH, 3, sw);
+    drawCakeTierShape(ctx, 0, 0, ooW, ooH, 3, sw, th.ink);
     ctx.restore();
   });
   withAlpha(ctx, shapeAlpha * botMorphProg, () => {
     ctx.save(); ctx.translate(o1CX + cakeDX, oCY); ctx.rotate(tiltAngle + OO.slant * botMorphProg);
     pathRRect(ctx, 0, 0, ooW, ooH, botRad);
-    ctx.strokeStyle = "#edeae3"; ctx.lineWidth = botStroke; ctx.stroke();
+    ctx.strokeStyle = th.ink; ctx.lineWidth = botStroke; ctx.stroke();
     ctx.restore();
   });
 
   // ── Top tier — cake out, loop in, slides right and settles ──────────────────────────────────
   withAlpha(ctx, shapeAlpha * (1 - topSlideProg), () => {
     ctx.save(); ctx.translate(curTopCX + cakeDX, curTopCY);
-    drawCakeTierShape(ctx, 0, 0, curTopW, curTopH, 2, sw);
+    drawCakeTierShape(ctx, 0, 0, curTopW, curTopH, 2, sw, th.ink);
     ctx.restore();
-    drawCandle(ctx, curTopCX + cakeDX, curTopCY - curTopH / 2, curTopH, sw, s);
+    drawCandle(ctx, curTopCX + cakeDX, curTopCY - curTopH / 2, curTopH, sw, s, th.ink);
   });
   withAlpha(ctx, shapeAlpha * topSlideProg, () => {
     ctx.save(); ctx.translate(curTopCX + cakeDX, curTopCY); ctx.rotate(OO.slant * topSlideProg);
     pathRRect(ctx, 0, 0, curTopW, curTopH, topRad);
-    ctx.strokeStyle = "#edeae3"; ctx.lineWidth = topStroke; ctx.stroke();
+    ctx.strokeStyle = th.ink; ctx.lineWidth = topStroke; ctx.stroke();
     ctx.restore();
   });
 
   // Dashed separator between the tiers, while they are still cakes
   withAlpha(ctx, shapeAlpha * (1 - topSlideProg), () => {
     const sepY = oCY - ooH / 2 - TIER_GAP / 2;
-    ctx.strokeStyle = "rgba(237,234,227,0.25)"; ctx.lineWidth = Math.max(1, sw * 0.6);
+    ctx.globalAlpha *= 0.25; ctx.strokeStyle = th.ink; ctx.lineWidth = Math.max(1, sw * 0.6);
     ctx.setLineDash([sw * 2, sw * 2]);
     ctx.beginPath();
     ctx.moveTo(o1CX + cakeDX - T_W * 0.42, sepY);
@@ -381,19 +435,25 @@ export default function LogoStingPage() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef<number>(0);
-  const logoRef   = useRef<Logo | null>(null);
+  /* One keyed logo per colourway — the tint is baked into the canvas at load rather than applied
+     per frame, so switching theme is a lookup and recording never pays for it. */
+  const logosRef  = useRef<Partial<Record<ThemeId, Logo>>>({});
   const [size, setSize]   = useState<SizeId>("16x9");
+  const [theme, setTheme] = useState<ThemeId>("dark");
   const [ready, setReady] = useState(false);
   const [status, setStatus]     = useState<"preview" | "recording" | "done">("preview");
   const [progress, setProgress] = useState(0);
   const [dlUrl, setDlUrl]       = useState("");
 
   const dim = SIZES.find(s => s.id === size)!;
+  const th  = THEMES[theme];
 
   /* ⚠️ NOTHING DRAWS UNTIL THE LOGO IS KEYED. A canvas draws an unloaded image as nothing and
      does not complain, so a sting recorded early is a cake crossing an empty frame. */
   useEffect(() => {
-    buildLogo("/spattoo-logo-2.jpg", "#edeae3").then(l => { logoRef.current = l; setReady(!!l); });
+    Promise.all((Object.keys(THEMES) as ThemeId[]).map(async id => {
+      logosRef.current[id] = (await buildLogo("/spattoo-logo-2.jpg", THEMES[id].ink)) ?? undefined;
+    })).then(() => setReady(!!logosRef.current.dark));
   }, []);
 
   useEffect(() => {
@@ -403,12 +463,12 @@ export default function LogoStingPage() {
     const ctx = canvas.getContext("2d")!;
     const start = performance.now();
     const loop = (now: number) => {
-      drawFrame(ctx, ((now - start) / 1000) % LOOP, dim.w, dim.h, logoRef.current);
+      drawFrame(ctx, ((now - start) / 1000) % LOOP, dim.w, dim.h, logosRef.current[theme] ?? null, th);
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [ready, status, dim.w, dim.h]);
+  }, [ready, status, dim.w, dim.h, theme, th]);
 
   async function record() {
     cancelAnimationFrame(rafRef.current);
@@ -428,7 +488,7 @@ export default function LogoStingPage() {
     encoder.configure({ codec: "avc1.640028", width: dim.w, height: dim.h, bitrate: 4_000_000, framerate: FPS });
 
     for (let i = 0; i < total; i++) {
-      drawFrame(ctx, i / FPS, dim.w, dim.h, logoRef.current);
+      drawFrame(ctx, i / FPS, dim.w, dim.h, logosRef.current[theme] ?? null, th);
       const frame = new VideoFrame(canvas, {
         timestamp: Math.round(i / FPS * 1_000_000),
         duration:  Math.round(1_000_000 / FPS),
@@ -453,7 +513,7 @@ export default function LogoStingPage() {
                   alignItems: "center", justifyContent: "center", gap: 20, padding: 40,
                   fontFamily: "Arial, sans-serif" }}>
       <p style={{ color: "#6b8f7e", fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", margin: 0 }}>
-        Spattoo logo sting · {dim.w} × {dim.h} · {LOOP}s
+        Spattoo logo sting · {dim.w} × {dim.h} · {LOOP}s · {th.label}
       </p>
 
       <div style={{ display: "flex", gap: 8 }}>
@@ -465,6 +525,19 @@ export default function LogoStingPage() {
                      color: size === s.id ? "#edeae3" : "#6b8f7e" }}>
             {s.label}<br />
             <span style={{ fontSize: 11, opacity: 0.7 }}>{s.w}×{s.h}</span>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 8 }}>
+        {(Object.keys(THEMES) as ThemeId[]).map(id => (
+          <button key={id} data-theme={id}
+            onClick={() => { setTheme(id); setStatus("preview"); setDlUrl(""); }}
+            style={{ padding: "7px 18px", borderRadius: 18, cursor: "pointer", fontSize: 13,
+                     border: `1px solid ${theme === id ? "#6b8f7e" : "rgba(107,143,126,0.25)"}`,
+                     background: theme === id ? "#3d5247" : "transparent",
+                     color: theme === id ? "#edeae3" : "#6b8f7e" }}>
+            {THEMES[id].label}
           </button>
         ))}
       </div>
@@ -490,10 +563,10 @@ export default function LogoStingPage() {
         </div>
       )}
       {status === "done" && (
-        <a href={dlUrl} download={`spattoo-logo-${size}.mp4`} data-download
+        <a href={dlUrl} download={`spattoo-logo-${size}-${theme}.mp4`} data-download
           style={{ padding: "12px 32px", background: "#3d5247", color: "#edeae3", borderRadius: 24,
                    fontSize: 15, textDecoration: "none" }}>
-          ↓ Download {dim.w}×{dim.h} MP4
+          ↓ Download {dim.w}×{dim.h} · {th.label}
         </a>
       )}
     </div>
