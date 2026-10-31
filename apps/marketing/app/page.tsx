@@ -64,7 +64,6 @@ export default function Home() {
               videoId="hRBLl2hpAqs"
               poster="/demo-video-poster.jpg"
               title="A tour of Spattoo"
-              caption="A walk through the whole app, one part at a time."
             />
           </div>
 

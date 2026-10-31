@@ -28,20 +28,24 @@ export default function VideoEmbed({
   videoId,
   poster,
   title,
-  caption,
 }: {
   videoId: string;
   poster: string;
   title: string;
-  caption?: string;
 }) {
   const [playing, setPlaying] = useState(false);
 
   return (
-    <figure className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       {/* 16:9, reserved before anything loads — the poster and the iframe are the same shape, so
           pressing play does not reflow the page under the reader's thumb. */}
-      <div className="relative w-full aspect-video overflow-hidden rounded-xl border border-[#6b8f7e]/20 bg-[#0d0d0d] shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
+      {/* ⚠️ THE EDGE HAS TO BE VISIBLE, and at /20 it was not: this poster's own corners are nearly
+          black, the section behind it is #0f0f0f, and the frame simply dissolved into the page —
+          Sandeep: *"it mixed up with the website's black color."* /40 is the strongest border this
+          site already uses (Pricing, PainPoint), so this is the existing language turned up rather
+          than a new treatment, and the sage halo under the drop shadow lifts it off the ground
+          without drawing a second line. */}
+      <div className="relative w-full aspect-video overflow-hidden rounded-xl border border-[#6b8f7e]/40 bg-[#0d0d0d] shadow-[0_18px_60px_rgba(0,0,0,0.45),0_0_48px_rgba(107,143,126,0.12)]">
         {playing ? (
           <iframe
             className="absolute inset-0 h-full w-full"
@@ -85,10 +89,6 @@ export default function VideoEmbed({
           </button>
         )}
       </div>
-
-      {caption && (
-        <figcaption className="mt-4 text-center text-sm text-[#edeae3]/50">{caption}</figcaption>
-      )}
-    </figure>
+    </div>
   );
 }
