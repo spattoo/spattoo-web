@@ -98,6 +98,22 @@ export function buildCsp(env = process.env) {
   // iframe, so it needs script-src AND frame-src.
   const TURNSTILE = "https://challenges.cloudflare.com";
 
+  // ── YouTube, for the marketing site's demo video ───────────────────────────
+  // The privacy-enhanced host, which holds off on cookies until playback — and
+  // the embed is a FACADE (components/VideoEmbed.tsx), so nothing is requested
+  // from Google until a visitor presses play. frame-src ONLY: the poster is a
+  // JPEG we serve ourselves, precisely so img-src does not have to grow a
+  // second origin that would be fetched on every visit.
+  //
+  // ⚠️ UNCONDITIONAL, UNLIKE THE GA ORIGINS BELOW, and the difference is worth
+  // stating rather than assuming. GA is gated on NEXT_PUBLIC_GA_ID because
+  // those origins are CALLED on every page view and disclose every visitor's IP
+  // — an unused entry here is a permission nobody exercises, not a beacon that
+  // fires. Gating it would mean one more variable in the rollout plan to buy a
+  // frame the baker app and the storefronts never open anyway. If that trade
+  // ever stops being worth it, gate it the way gaImg is gated.
+  const YOUTUBE = "https://www.youtube-nocookie.com";
+
   // ── Google Analytics — ONLY when this deploy actually uses it ──────────────
   // Gated on NEXT_PUBLIC_GA_ID rather than hardcoded, because these origins are
   // the deliberate REVERSAL of a decision this file already made: SEC-WEB-7
@@ -235,7 +251,7 @@ export function buildCsp(env = process.env) {
     "worker-src": ["'self'", "blob:"],
 
     "media-src": ["'self'", "blob:", "data:", assets, ...extra],
-    "frame-src": [TURNSTILE],
+    "frame-src": [TURNSTILE, YOUTUBE],
     "manifest-src": ["'self'"],
   };
 

@@ -68,6 +68,22 @@ const csp = (env) => {
   ok(/frame-src[^;]*challenges\.cloudflare\.com/.test(c), "…including frame-src, which the widget needs");
 }
 
+// ── the demo video's frame ───────────────────────────────────────────────────
+// `components/VideoEmbed.tsx` mounts a youtube-nocookie iframe on the click that asks for it. Miss
+// this directive and nothing breaks today — the frame loads and a violation is logged where nobody
+// is looking — and the day CSP_ENFORCE is on the video is a blank rectangle on the landing page.
+// That is the same shape as the demo form at the top of this file, which is why it is pinned.
+//
+// The HOST is asserted, not just the word "youtube": the plain youtube.com origin would also
+// contain it, and the whole point of the privacy-enhanced host is that it is the other one.
+{
+  const c = csp({ NEXT_PUBLIC_BASE_DOMAIN: "spattoo.dev" });
+  ok(/frame-src[^;]*www\.youtube-nocookie\.com/.test(c), "the demo video's frame host is admitted");
+  // The poster is served from /public on purpose, so Google is not called before a visitor presses
+  // play. If img-src ever grows a YouTube thumbnail host, that decision has been quietly reversed.
+  ok(!/img-src[^;]*ytimg\.com/.test(c), "…and its poster is ours, not a request to Google on every visit");
+}
+
 // ── Google Analytics: present when measured, ABSENT when not ─────────────────
 // Two failure directions, and the second is the one nobody tests for.
 //

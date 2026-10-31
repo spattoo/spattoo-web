@@ -1,4 +1,5 @@
 import HeroText from "@/components/HeroText";
+import VideoEmbed from "@/components/VideoEmbed";
 import SpaceGridLoader from "@/components/SpaceGridLoader";
 import Pricing from "@/components/Pricing";
 import PricingCTA from "@/components/PricingCTA";
@@ -47,9 +48,26 @@ export default function Home() {
           <p className="text-xs tracking-[0.35em] uppercase text-[#6b8f7e] text-center mb-3">
             Simple process
           </p>
-          <h2 className="text-3xl md:text-5xl font-bold text-center mb-16 text-[#edeae3]">
+          <h2 className="text-3xl md:text-5xl font-bold text-center mb-10 text-[#edeae3]">
             How It Works
           </h2>
+
+          {/* ⚠️ HERE, AND DELIBERATELY NOT IN THE HERO. The hero is a LIVE 3D cake — the strongest
+              thing on this site and already show-don't-tell — so putting a video thumbnail over it
+              trades the real thing for a picture of the real thing. This section, by contrast,
+              promises a walkthrough and then delivers it in four paragraphs: the video IS that,
+              shown, and the steps below stay as the skim version for the many people who will not
+              give four minutes to a stranger's product. It also gives `#how-it-works`, already a
+              nav anchor, something worth linking to. */}
+          <div className="mb-16">
+            <VideoEmbed
+              videoId="hRBLl2hpAqs"
+              poster="/demo-video-poster.jpg"
+              title="A tour of Spattoo"
+              caption="A walk through the whole app, one part at a time."
+            />
+          </div>
+
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12">
             {[
               {
